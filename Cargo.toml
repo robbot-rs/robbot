@@ -1,0 +1,21 @@
+[package]
+name = "robbot-v3"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.12.0", features = ["full"] }
+serde = { version = "1.0.126", features = ["derive"] }
+serenity = { version = "0.10.8", default-features = false, features = ["builder", "cache", "client", "gateway", "http", "model", "rustls_backend"] }
+async-trait = "0.1.50"
+serde_json = "1.0.64"
+chrono = "0.4.19"
+sqlx = { version = "0.5.5", features = ["runtime-tokio-rustls", "mysql", "any"] }
+clap = "2.33.3"
+regex = "1.5.4"
+futures = "0.3.17"
+reqwest = "0.11.4"
+itoa = "0.4.8"
+dtoa = "0.4.8"
