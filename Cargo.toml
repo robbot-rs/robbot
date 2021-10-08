@@ -3,6 +3,10 @@ name = "robbot"
 version = "0.1.0"
 edition = "2018"
 
+[features]
+default = ["permissions"]
+permissions = []
+
 [dependencies]
 tokio = { version = "1.12.0", features = ["full"] }
 serde = { version = "1.0.126", features = ["derive"] }

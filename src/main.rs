@@ -64,10 +64,13 @@ impl EventHandler for Handler {
             None => return,
         };
 
-        // TODO: impl permission system
-        let admins = vec![];
-        if !admins.contains(&message.author.id.0) {
-            return;
+        #[cfg(feature = "permissions")]
+        {
+            // TODO: impl permission system
+            let admins = vec![305107935606996992];
+            if !admins.contains(&message.author.id.0) {
+                return;
+            }
         }
 
         let mut args = parse_args(&msg);
@@ -146,6 +149,8 @@ impl EventHandler for Handler {
     }
 
     async fn ready(&self, ctx: Context, _: serenity::model::gateway::Ready) {
+        println!("[BOT] Bot online");
+
         self.state
             .task_scheduler
             .update_context(Some(bot::Context {
