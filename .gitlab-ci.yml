@@ -9,7 +9,7 @@ stages:
 setup:
   stage: setup
   script:
-    - rustup toolchain install stable-x86_64-unknown-linux-gnu
+    - rustup toolchain default stable-x86_64-unknown-linux-gnu
     - rustup component add rustfmt
     - rustup component add clippy
 
