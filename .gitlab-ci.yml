@@ -21,7 +21,7 @@ clippy:
   stage: clippy
   script:
     - rustup component add clippy
-    - cargo clippy --all-targets --all-features -- -D warning
+    - cargo clippy --all-targets --all-features -- -D warnings
 
 test:
   stage: test
