@@ -15,8 +15,6 @@ use serenity::{
     model::channel::Message,
 };
 
-const TOKEN: &str = "NjAzOTk0NTU0MjE5MTAyMjIw.XTnfww.Kyk3cwqsIc2hUNuzGiAV5SLjnCQ";
-
 #[tokio::main]
 async fn main() {
     let mut state = State::new();
@@ -44,7 +42,7 @@ async fn main() {
     // plugins::temprole::init(state.clone());
     // plugins::events::init(state.clone());
 
-    let mut client = Client::builder(&TOKEN)
+    let mut client = Client::builder(&config.token)
         .event_handler(Handler { state })
         .await
         .unwrap();
@@ -165,6 +163,7 @@ impl EventHandler for Handler {
 
 #[derive(serde::Deserialize)]
 struct Config {
+    token: String,
     host: String,
     port: u16,
     user: String,
