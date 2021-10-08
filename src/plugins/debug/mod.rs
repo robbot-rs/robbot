@@ -47,9 +47,9 @@ async fn _taskqueue(ctx: MessageContext) -> bot::Result {
         0 => string.push_str("No tasks scheduled."),
         _ => {
             for task in ctx.state.task_scheduler.get_tasks().await {
-                write!(
+                writeln!(
                     string,
-                    "Task *{}* scheduled at *{}*.\n",
+                    "Task *{}* scheduled at *{}*.",
                     task.name, task.next_exec
                 )
                 .unwrap();

@@ -214,7 +214,7 @@ impl InnerTaskScheduler {
         match message {
             TaskSchedulerMessage::AddTask(task) => self.add_task(task),
             TaskSchedulerMessage::GetTasks(tx) => {
-                let tasks = self.tasks.iter().map(|task| task.clone()).collect();
+                let tasks = self.tasks.iter().cloned().collect();
                 let _ = tx.send(tasks);
             }
             TaskSchedulerMessage::UpdateContext(ctx) => self.context = ctx,
@@ -275,39 +275,12 @@ impl TaskScheduler {
         let _ = self.tx.send(TaskSchedulerMessage::GetTasks(tx)).await;
         rx.await.unwrap()
     }
+}
 
-    // pub fn next_run(&self) -> Option<Duration> {
-    //     let now = Utc::now();
-
-    //     Some(self.tasks.get(0)?.next_execution(&now) - now)
-    // }
-
-    // pub fn run(&mut self, ctx: Context<()>) -> bot::Result {
-    //     let task = match self.next_run() {
-    //         Some(duration) => {
-    //             if duration > Duration::seconds(0) {
-    //                 return Ok(());
-    //             }
-    //             self.tasks.pop_front().unwrap().clone()
-    //         }
-    //         None => return Ok(()),
-    //     };
-
-    //     // Move task execution to a new task.
-    //     {
-    //         let task = task.clone();
-    //         let ctx = ctx.clone();
-    //         tokio::task::spawn(async move {
-    //             let err = task.executor().send(ctx).await;
-    //             println!("Task {} returned error: {:?}", task.name, err);
-    //         });
-    //     }
-
-    //     // Put the task back into the queue.
-    //     self.add_task(task);
-
-    //     self.run(ctx)
-    // }
+impl Default for TaskScheduler {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]

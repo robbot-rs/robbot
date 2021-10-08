@@ -1,14 +1,9 @@
 use super::executor::Executor;
-use crate::bot::{self, Context};
+use crate::bot::Context;
 use std::{
     borrow::Borrow,
     collections::HashSet,
-    future::Future,
     hash::{Hash, Hasher},
-};
-use tokio::{
-    sync::{mpsc, oneshot},
-    task,
 };
 
 use serenity::model::channel::Message;

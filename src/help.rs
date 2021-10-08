@@ -6,7 +6,7 @@ use {
 pub(crate) fn global(commands: &HashSet<Command>) -> String {
     let mut string = String::new();
     for command in commands {
-        write!(string, "- {}\n", command.name);
+        writeln!(string, "- {}", command.name).unwrap();
     }
 
     string
@@ -15,14 +15,14 @@ pub(crate) fn global(commands: &HashSet<Command>) -> String {
 /// Return Command help
 pub(crate) fn command(command: &Command) -> String {
     let mut string = String::new();
-    write!(string, "**Name**: {}\n", command.name);
-    write!(string, "**Description**: {}\n", command.description);
+    writeln!(string, "**Name**: {}", command.name).unwrap();
+    writeln!(string, "**Description**: {}", command.description).unwrap();
 
     if !command.sub_commands.is_empty() {
-        write!(string, "**Sub Commands**:\n");
+        writeln!(string, "**Sub Commands**:").unwrap();
 
         for command in &command.sub_commands {
-            write!(string, "- {}\n", command.name);
+            writeln!(string, "- {}", command.name).unwrap();
         }
     }
 

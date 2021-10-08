@@ -1,20 +1,19 @@
 use super::router::{find_command, parse_args};
 use crate::core::{
     command::Command,
-    hook::{self, Hook},
     store::Store,
     task::{Task, TaskScheduler},
 };
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     sync::{Arc, RwLock},
 };
 
-// #[derive(Clone)]
+#[derive(Default)]
 pub struct State {
     pub(crate) commands: Arc<RwLock<HashSet<Command>>>,
     pub(crate) task_scheduler: TaskScheduler,
-    pub(crate) hooks: Arc<RwLock<HashMap<hook::Event, Vec<Hook>>>>,
+    // pub(crate) hooks: Arc<RwLock<HashMap<hook::Event, Vec<Hook>>>>,
     pub store: Store,
 }
 
@@ -23,7 +22,7 @@ impl State {
         Self {
             commands: Arc::default(),
             task_scheduler: TaskScheduler::new(),
-            hooks: Arc::default(),
+            // hooks: Arc::default(),
             store: Store { pool: None },
         }
     }
@@ -64,6 +63,4 @@ impl State {
             tx.update_context(ctx).await;
         });
     }
-
-    pub fn add_hook(&self, hook: Hook) {}
 }

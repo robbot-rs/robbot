@@ -42,7 +42,7 @@ pub(crate) fn find_command<'life0>(
     commands: &'life0 HashSet<Command>,
     args: &mut Vec<&str>,
 ) -> Option<&'life0 Command> {
-    if args.len() == 0 {
+    if args.is_empty() {
         return None;
     }
 
@@ -65,7 +65,7 @@ pub(crate) fn find_command<'life0>(
 }
 
 pub(crate) fn route_command(commands: &HashSet<Command>, args: &mut Vec<&str>) -> Option<Command> {
-    if args.len() == 0 {
+    if args.is_empty() {
         return None;
     }
 
@@ -127,7 +127,7 @@ mod tests {
         commands.insert(hello);
 
         let mut args = vec!["empty"];
-        assert_eq!(route_command(&commands, &mut args).is_none(), true);
+        assert!(route_command(&commands, &mut args).is_none());
 
         let mut args = vec!["test1"];
         assert_eq!(route_command(&commands, &mut args).unwrap().name, "test1");

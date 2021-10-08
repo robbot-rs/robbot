@@ -27,8 +27,8 @@ async fn main() {
     // Create a store
     state.store.pool = Some(
         sqlx::MySqlPool::connect(&format!(
-            "mysql://{}:{}@{}/{}?ssl-mode=DISABLED",
-            config.user, config.password, config.host, config.database
+            "mysql://{}:{}@{}:{}/{}?ssl-mode=DISABLED",
+            config.user, config.password, config.host, config.port, config.database
         ))
         .await
         .unwrap(),
@@ -39,7 +39,7 @@ async fn main() {
     #[cfg(debug_assertions)]
     plugins::debug::init(state.clone());
 
-    // builtin::init(state.clone());
+    builtin::init(state.clone());
     // plugins::guildsync::init(state.clone());
     // plugins::temprole::init(state.clone());
     // plugins::events::init(state.clone());
@@ -59,7 +59,7 @@ pub struct Handler {
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, message: Message) {
-        let msg = match message.content.strip_prefix("!") {
+        let msg = match message.content.strip_prefix('!') {
             Some(msg) => msg,
             None => return,
         };
@@ -73,7 +73,7 @@ impl EventHandler for Handler {
             }
         }
 
-        let mut args = parse_args(&msg);
+        let mut args = parse_args(msg);
 
         let cmd = {
             let commands = self.state.commands.read().unwrap();
