@@ -1,9 +1,17 @@
 image: "rust:latest"
 
 stages:
+  - setup
   - fmt
   - clippy
   - test
+
+setup:
+  stage: setup
+  script:
+    - rustup toolchain install stable-x86_64-unknown-gnu
+    - rustup component add rustfmt
+    - rustup component add clippy
 
 fmt:
   stage: fmt
