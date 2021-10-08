@@ -22,7 +22,7 @@ fmt:
 clippy:
   stage: clippy
   script:
-    - cargo clippy --all--targets --all-features -- -D warning
+    - cargo clippy --all-targets --all-features -- -D warning
 
 test:
   stage: test
