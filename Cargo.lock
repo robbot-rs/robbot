@@ -1256,7 +1256,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "robbot-v3"
+name = "robbot"
 version = "0.1.0"
 dependencies = [
  "async-trait",
