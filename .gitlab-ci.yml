@@ -10,18 +10,17 @@ setup:
   stage: setup
   script:
     - rustup default stable-x86_64-unknown-linux-gnu
-    - rustup component add rustfmt
-    - rustup component add clippy
 
 fmt:
   stage: fmt
   script:
-    - rustc --version && cargo --version
+    - rustup component add rustfmt
     - cargo fmt --all -- --check
 
 clippy:
   stage: clippy
   script:
+    - rustup component add clippy
     - cargo clippy --all-targets --all-features -- -D warning
 
 test:
