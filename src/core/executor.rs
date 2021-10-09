@@ -1,5 +1,5 @@
 use {
-    crate::bot,
+    crate::bot::{self, Error},
     std::future::Future,
     tokio::{
         sync::{mpsc, oneshot},
@@ -24,8 +24,9 @@ impl<T> Executor<T> {
 
         match rx.await {
             Ok(val) => val,
-            // Sender was dropped.
-            Err(_) => unimplemented!(),
+            // Sender was dropped. If this happens the
+            // task likely panicked.
+            Err(_) => Err(Error::NoResponse),
         }
     }
 }

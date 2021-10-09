@@ -8,6 +8,10 @@ use std::sync::Arc;
 pub enum Error {
     InvalidCommandUsage,
     Unimplemented,
+    /// Indicates that the executor dropped before
+    /// sending a response. This likely means that
+    /// the executing thread panicked.
+    NoResponse,
     BoxError(Box<dyn error::Error + Send + Sync + 'static>),
 }
 
