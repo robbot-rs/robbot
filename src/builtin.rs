@@ -12,7 +12,7 @@ pub fn init(state: Arc<State>) {
     const COMMANDS: &[fn() -> Command] = &[help, uptime, version];
 
     for f in COMMANDS {
-        state.add_command(f(), None);
+        state.add_command(f(), None).unwrap();
     }
 }
 
