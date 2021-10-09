@@ -6,8 +6,37 @@ use crate::core::{
 };
 use std::{
     collections::HashSet,
+    error,
+    fmt::{self, Display, Formatter},
     sync::{Arc, RwLock},
 };
+
+/// An error returned when loading a command,
+/// task or hook.
+#[derive(Clone, Debug)]
+pub enum LoadError {
+    /// The provided insertion path for the command
+    /// doesn't exist.
+    InvalidPath,
+    /// A command, task or hook with the same name
+    /// already exists.
+    DuplicateName,
+}
+
+impl Display for LoadError {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::InvalidPath => "invalid path",
+                Self::DuplicateName => "duplicate name",
+            }
+        )
+    }
+}
+
+impl error::Error for LoadError {}
 
 #[derive(Default)]
 pub struct State {
@@ -28,17 +57,25 @@ impl State {
     }
 
     /// Register a text command.
-    pub fn add_command(&self, command: Command, path: Option<&str>) {
+    pub fn add_command(&self, command: Command, path: Option<&str>) -> Result<(), LoadError> {
         let commands = self.commands.write().unwrap();
 
         let root_set = match path {
             Some(path) => {
-                &find_command(&commands, &mut parse_args(path))
-                    .unwrap()
-                    .sub_commands
+                let cmd = match find_command(&commands, &mut parse_args(path)) {
+                    Some(cmd) => cmd,
+                    None => return Err(LoadError::InvalidPath),
+                };
+
+                &cmd.sub_commands
             }
             None => &commands,
         };
+
+        // Check for command with same name.
+        if root_set.contains(&command) {
+            return Err(LoadError::DuplicateName);
+        }
 
         // Convert &HashSet into &mut HashSet. This is a safe operation
         // as `self.commands` is write locked and changing `Command.sub_commands`
@@ -48,6 +85,8 @@ impl State {
             let root_set: &mut HashSet<Command> = std::mem::transmute(root_set);
             root_set.insert(command);
         }
+
+        Ok(())
     }
 
     pub fn add_task(&self, task: Task) {
