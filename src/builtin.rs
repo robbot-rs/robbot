@@ -58,15 +58,30 @@ async fn _uptime(ctx: MessageContext) -> bot::Result {
 
 command!(version, description: "VERSION", executor: _version);
 async fn _version(ctx: MessageContext) -> bot::Result {
-    const VERSION: &str = "1.0.0";
-    const BUILT: &str = "0";
+    #[cfg(debug_assertions)]
+    const VERSION: &str = "`None`";
+
+    #[cfg(not(debug_assertions))]
+    const VERSION: &str = env!(
+        "ROBBOT_VERSION",
+        "ROBBOT_VERSION environment variable is undefined"
+    );
+
+    #[cfg(debug_assertions)]
+    const BUILT: &str = "`None`";
+
+    #[cfg(not(debug_assertions))]
+    const BUILT: &str = env!(
+        "ROBBOT_BUILT",
+        "ROBBOT_BUILT environment variable is undefined"
+    );
 
     ctx.event
         .channel_id
         .send_message(&ctx.raw_ctx, |m| {
             m.embed(|e| {
                 e.title("Version");
-                e.description(format!("{}\n{}", VERSION, BUILT));
+                e.description(format!("{}\nBuilt: {}", VERSION, BUILT));
                 e
             })
         })
