@@ -5,18 +5,32 @@ mod help;
 mod macros;
 mod plugins;
 
-use crate::core::{router::parse_args, router::route_command, state::State};
-
+use crate::core::{hook::Event, router::parse_args, router::route_command, state::State};
 use async_trait::async_trait;
-use std::sync::Arc;
-
 use serenity::{
-    client::{Client, Context, EventHandler},
-    model::channel::Message,
+    client::{bridge::gateway::GatewayIntents, Client, Context, EventHandler},
+    model::{
+        channel::{GuildChannel, Message, Reaction},
+        guild::Member,
+        id::{ChannelId, GuildId, MessageId},
+        user::User,
+    },
 };
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
+    let gateway_intents = GatewayIntents::GUILDS
+        | GatewayIntents::GUILD_MEMBERS
+        | GatewayIntents::GUILD_BANS
+        | GatewayIntents::GUILD_EMOJIS
+        | GatewayIntents::GUILD_INVITES
+        | GatewayIntents::GUILD_VOICE_STATES
+        | GatewayIntents::GUILD_MESSAGES
+        | GatewayIntents::GUILD_MESSAGE_REACTIONS
+        | GatewayIntents::DIRECT_MESSAGES
+        | GatewayIntents::DIRECT_MESSAGE_REACTIONS;
+
     let mut state = State::new();
 
     // Load config.json file
@@ -38,11 +52,12 @@ async fn main() {
     plugins::debug::init(state.clone());
 
     builtin::init(state.clone());
-    // plugins::guildsync::init(state.clone());
-    // plugins::temprole::init(state.clone());
-    // plugins::events::init(state.clone());
+    plugins::guildsync::init(state.clone());
+    plugins::temprole::init(state.clone());
+    plugins::events::init(state.clone());
 
     let mut client = Client::builder(&config.token)
+        .intents(gateway_intents)
         .event_handler(Handler { state })
         .await
         .unwrap();
@@ -56,7 +71,82 @@ pub struct Handler {
 
 #[async_trait]
 impl EventHandler for Handler {
+    async fn channel_create(&self, ctx: Context, channel: &GuildChannel) {
+        self.state
+            .hook_controller
+            .send_event(Event::ChannelCreate(Box::new(bot::Context::new(
+                ctx,
+                self.state.clone(),
+                channel.to_owned(),
+            ))))
+            .await;
+    }
+
+    async fn channel_delete(&self, ctx: Context, channel: &GuildChannel) {
+        self.state
+            .hook_controller
+            .send_event(Event::ChannelDelete(Box::new(bot::Context::new(
+                ctx,
+                self.state.clone(),
+                channel.to_owned(),
+            ))))
+            .await;
+    }
+
+    async fn guild_member_addition(&self, ctx: Context, guild_id: GuildId, new_member: Member) {
+        self.state
+            .hook_controller
+            .send_event(Event::GuildMemberAddition(Box::new(bot::Context::new(
+                ctx,
+                self.state.clone(),
+                (guild_id, new_member),
+            ))))
+            .await;
+    }
+
+    async fn guild_member_removal(
+        &self,
+        ctx: Context,
+        guild_id: GuildId,
+        user: User,
+        member_data_if_available: Option<Member>,
+    ) {
+        self.state
+            .hook_controller
+            .send_event(Event::GuildMemberRemoval(Box::new(bot::Context::new(
+                ctx,
+                self.state.clone(),
+                (guild_id, user, member_data_if_available),
+            ))))
+            .await;
+    }
+
+    async fn guild_member_update(
+        &self,
+        ctx: Context,
+        old_if_available: Option<Member>,
+        new: Member,
+    ) {
+        self.state
+            .hook_controller
+            .send_event(Event::GuildMemberUpdate(Box::new(bot::Context::new(
+                ctx,
+                self.state.clone(),
+                (old_if_available, new),
+            ))))
+            .await;
+    }
+
     async fn message(&self, ctx: Context, message: Message) {
+        self.state
+            .hook_controller
+            .send_event(Event::Message(Box::new(bot::Context::new(
+                ctx.clone(),
+                self.state.clone(),
+                message.clone(),
+            ))))
+            .await;
+
         let msg = match message.content.strip_prefix('!') {
             Some(msg) => msg,
             None => return,
@@ -144,6 +234,44 @@ impl EventHandler for Handler {
                     .await;
             }
         }
+    }
+
+    async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
+        self.state
+            .hook_controller
+            .send_event(Event::ReactionAdd(Box::new(bot::Context::new(
+                ctx,
+                self.state.clone(),
+                add_reaction,
+            ))))
+            .await;
+    }
+
+    async fn reaction_remove(&self, ctx: Context, removed_reaction: Reaction) {
+        self.state
+            .hook_controller
+            .send_event(Event::ReactionRemove(Box::new(bot::Context::new(
+                ctx,
+                self.state.clone(),
+                removed_reaction,
+            ))))
+            .await;
+    }
+
+    async fn reaction_remove_all(
+        &self,
+        ctx: Context,
+        channel_id: ChannelId,
+        removed_from_message_id: MessageId,
+    ) {
+        self.state
+            .hook_controller
+            .send_event(Event::ReactionRemoveAll(Box::new(bot::Context::new(
+                ctx,
+                self.state.clone(),
+                (channel_id, removed_from_message_id),
+            ))))
+            .await;
     }
 
     async fn ready(&self, ctx: Context, _: serenity::model::gateway::Ready) {
