@@ -9,9 +9,9 @@ use crate::{
 use std::{fmt::Write, sync::Arc};
 
 pub fn init(state: Arc<State>) {
-    state.add_command(debug(), None);
-    state.add_command(parse_args(), Some("debug"));
-    state.add_command(taskqueue(), Some("debug"));
+    state.add_command(debug(), None).unwrap();
+    state.add_command(parse_args(), Some("debug")).unwrap();
+    state.add_command(taskqueue(), Some("debug")).unwrap();
 }
 
 command!(
