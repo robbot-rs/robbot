@@ -2,16 +2,17 @@
 //! Adds a few info commands under the debug module
 //! in debug build mode.
 use crate::{
-    bot::{self, MessageContext},
+    bot::{self, Error::InvalidCommandUsage, MessageContext},
     command,
-    core::state::State,
+    core::{hook::EventKind, state::State},
 };
-use std::{fmt::Write, sync::Arc};
+use std::{convert::TryFrom, fmt::Write, sync::Arc};
 
 pub fn init(state: Arc<State>) {
     state.add_command(debug(), None).unwrap();
     state.add_command(parse_args(), Some("debug")).unwrap();
     state.add_command(taskqueue(), Some("debug")).unwrap();
+    state.add_command(await_hook(), Some("debug")).unwrap();
 }
 
 command!(
@@ -58,5 +59,29 @@ async fn _taskqueue(ctx: MessageContext) -> bot::Result {
     }
 
     ctx.event.reply(&ctx.raw_ctx, string).await?;
+    Ok(())
+}
+
+command!(
+    await_hook,
+    description: "Await a single hook of a specific type, then drop the receiver.",
+    executor: _await_hook,
+);
+async fn _await_hook(mut ctx: MessageContext) -> bot::Result {
+    if ctx.args.len() != 1 {
+        return Err(InvalidCommandUsage);
+    }
+
+    let event_kind = match EventKind::try_from(ctx.args.remove(0).as_str()) {
+        Ok(event_kind) => event_kind,
+        Err(_) => return Err(InvalidCommandUsage),
+    };
+
+    let mut rx = ctx.state.hook_controller.get_receiver(event_kind).await;
+
+    let _ = rx.recv().await.unwrap();
+
+    let _ = ctx.event.reply(&ctx.raw_ctx, "Got Event Data").await;
+
     Ok(())
 }
