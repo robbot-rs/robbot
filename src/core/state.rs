@@ -1,6 +1,7 @@
 use super::router::{find_command, parse_args};
 use crate::core::{
     command::Command,
+    hook::{Hook, HookController},
     store::Store,
     task::{Task, TaskScheduler},
 };
@@ -42,6 +43,7 @@ impl error::Error for LoadError {}
 pub struct State {
     pub(crate) commands: Arc<RwLock<HashSet<Command>>>,
     pub(crate) task_scheduler: TaskScheduler,
+    pub(crate) hook_controller: HookController,
     // pub(crate) hooks: Arc<RwLock<HashMap<hook::Event, Vec<Hook>>>>,
     pub store: Store,
 }
@@ -51,7 +53,7 @@ impl State {
         Self {
             commands: Arc::default(),
             task_scheduler: TaskScheduler::new(),
-            // hooks: Arc::default(),
+            hook_controller: HookController::new(),
             store: Store { pool: None },
         }
     }
@@ -93,6 +95,13 @@ impl State {
         let tx = self.task_scheduler.clone();
         tokio::task::spawn(async move {
             tx.add_task(task).await;
+        });
+    }
+
+    pub fn add_hook(&self, hook: Hook) {
+        let hook_controller = self.hook_controller.clone();
+        tokio::task::spawn(async move {
+            hook_controller.add_hook(hook).await;
         });
     }
 
