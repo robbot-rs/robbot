@@ -17,8 +17,8 @@ const QUEUE_SIZE: usize = 32;
 
 #[derive(Clone, Debug)]
 pub struct Hook {
-    name: String,
-    on_event: EventKind,
+    pub name: String,
+    pub on_event: EventKind,
 }
 
 impl Hash for Hook {
@@ -128,7 +128,7 @@ impl TryFrom<&str> for EventKind {
 }
 
 #[derive(Clone)]
-pub(crate) enum Event {
+pub enum Event {
     ChannelCreate(Box<crate::bot::ChannelCreateContext>),
     ChannelDelete(Box<crate::bot::ChannelDeleteContext>),
     GuildMemberAddition(Box<crate::bot::GuildMemberAdditionContext>),
