@@ -259,12 +259,8 @@ mod tests {
 
     #[test]
     fn test_hook_controller() {
-        fn hooks_as_vec<'life0>(hook_controller: &InnerHookController) -> Vec<Hook> {
-            hook_controller
-                .hooks
-                .iter()
-                .map(|hook| hook.clone())
-                .collect()
+        fn hooks_as_vec(hook_controller: &InnerHookController) -> Vec<Hook> {
+            hook_controller.hooks.iter().cloned().collect()
         }
 
         let mut hook_controller = InnerHookController::default();
