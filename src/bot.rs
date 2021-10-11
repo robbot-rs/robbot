@@ -1,4 +1,7 @@
-use crate::core::state::State;
+use crate::core::{
+    hook::{Event, EventKind, Hook},
+    state::State,
+};
 use serenity::model::{
     channel::{GuildChannel, Message, Reaction},
     guild::Member,
@@ -8,6 +11,8 @@ use serenity::model::{
 use std::convert::From;
 use std::error;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::{select, time};
 
 #[derive(Debug)]
 pub enum Error {
@@ -18,6 +23,8 @@ pub enum Error {
     /// the executing thread panicked.
     NoResponse,
     BoxError(Box<dyn error::Error + Send + Sync + 'static>),
+    /// Hook collector timed out.
+    HookTimeout,
 }
 
 impl<T> From<T> for Error
@@ -61,11 +68,76 @@ impl<T> Context<T> {
             event,
         }
     }
+
+    /// Create a new hook.
+    pub async fn create_hook(
+        &self,
+        event_kind: EventKind,
+    ) -> tokio::sync::broadcast::Receiver<Event> {
+        let hook_id = self
+            .state
+            .hook_id
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+
+        let hook = Hook {
+            name: hook_id.to_string(),
+            on_event: event_kind,
+        };
+
+        self.state.add_hook(hook).await
+    }
 }
 
-// impl Context<Message> {
-//     fn respond<T>(&self, s: &str) -> serenity::Result<()> {}
-// }
+impl Context<Message> {
+    /// Wait for the same author to send another message in the same
+    /// channel. Returns the new message. Returns [`Error::HookTimeout`]
+    /// if the author doesn't respond in time.
+    pub async fn await_message(&self, timeout: Duration) -> std::result::Result<Message, Error> {
+        let mut rx = self.create_hook(EventKind::Message).await;
+
+        loop {
+            select! {
+                event = rx.recv() => {
+                    let event = match event.unwrap() {
+                        Event::Message(ctx) => ctx.event,
+                        _ => unreachable!(),
+                    };
+
+                    if self.event.channel_id == event.channel_id && self.event.author.id == event.author.id {
+                        return Ok(event)
+                    }
+                }
+                _ = time::sleep(timeout) => return Err(Error::HookTimeout),
+            }
+        }
+    }
+
+    /// Wait for the same author to react to the message. Returns the
+    /// new reaction. Returns [`Error::HookTimeout`] if the author doesn't
+    /// respond in time.
+    pub async fn await_reaction(&self, timeout: Duration) -> std::result::Result<Reaction, Error> {
+        let mut rx = self.create_hook(EventKind::ReactionAdd).await;
+
+        loop {
+            select! {
+                event = rx.recv() => {
+                    // Unwrap Event enum
+                    let event = match event.unwrap() {
+                        Event::ReactionAdd(ctx) => ctx.event,
+                        _ => unreachable!(),
+                    };
+
+                    if let Some(user_id) = event.user_id {
+                        if self.event.id == event.message_id && self.event.author.id == user_id {
+                            return Ok(event);
+                        }
+                    }
+                }
+                _ = time::sleep(timeout) => return Err(Error::HookTimeout),
+            }
+        }
+    }
+}
 
 pub mod prelude {
     pub use crate::bot::{self, Error::InvalidCommandUsage, MessageContext, TaskContext};
