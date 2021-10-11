@@ -98,11 +98,11 @@ impl State {
         });
     }
 
-    pub fn add_hook(&self, hook: Hook) {
-        let hook_controller = self.hook_controller.clone();
-        tokio::task::spawn(async move {
-            hook_controller.add_hook(hook).await;
-        });
+    pub async fn add_hook(
+        &self,
+        hook: Hook,
+    ) -> tokio::sync::broadcast::Receiver<super::hook::Event> {
+        self.hook_controller.add_hook(hook).await
     }
 
     pub fn update_task_context(&self, ctx: Option<crate::bot::Context<()>>) {
