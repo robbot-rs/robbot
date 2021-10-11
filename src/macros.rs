@@ -33,6 +33,35 @@ macro_rules! task {
 }
 
 #[macro_export]
+macro_rules! hook {
+    ($name:ident, $event:expr, $executor:expr $(,)?) => {
+        fn $name(state: ::std::sync::Arc<$crate::core::state::State>) {
+            let hook = $crate::core::hook::Hook {
+                name: stringify!($name).to_owned(),
+                on_event: $event,
+            };
+
+            ::tokio::task::spawn(async move {
+                let mut rx = state.add_hook(hook).await;
+
+                ::tokio::task::spawn(async move {
+                    let executor = $crate::core::executor::Executor::from_fn($executor);
+                    while let Ok(event) = rx.recv().await {
+                        let ctx = match event {
+                            $crate::core::hook::Event::GuildMemberUpdate(ctx) => ctx,
+                            _ => unreachable!(),
+                        };
+                        if let Err(err) = executor.send(*ctx).await {
+                            eprintln!("[Hook] Hook execution failed: {:?}", err);
+                        }
+                    }
+                });
+            });
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! task_schedule {
     // Interval
     (sec: $sec:expr) => {{
