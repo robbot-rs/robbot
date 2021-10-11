@@ -5,6 +5,7 @@ edition = "2018"
 
 [features]
 default = ["permissions"]
+debug = []
 permissions = []
 
 [profile.dev]
