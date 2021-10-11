@@ -10,7 +10,7 @@ macro_rules! command {
 
             $(
                 let executor = $crate::core::executor::Executor::from_fn($executor);
-                cmd.executor = ::std::option::Option::Some(::std::boxed::Box::leak(::std::boxed::Box::new(executor)));
+                cmd.executor = ::std::option::Option::Some(executor);
             )?
 
             cmd
@@ -25,10 +25,7 @@ macro_rules! task {
             $crate::core::task::Task {
                 name: stringify!($name).to_owned(),
                 schedule: $schedule,
-                executor: {
-                    let executor = $crate::core::executor::Executor::from_fn($executor);
-                    ::std::boxed::Box::leak(::std::boxed::Box::new(executor))
-                },
+                executor: $crate::core::executor::Executor::from_fn($executor),
                 on_load: true,
             }
         }

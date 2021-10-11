@@ -172,7 +172,7 @@ impl EventHandler for Handler {
             }
         };
 
-        match cmd.executor() {
+        match &cmd.executor {
             Some(executor) => {
                 // Convert args to owned strings.
                 let args = args.iter().map(|s| s.to_string()).collect();

@@ -8,12 +8,12 @@ use std::{
 
 use serenity::model::channel::Message;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Command {
     pub name: String,
     pub description: String,
     pub sub_commands: HashSet<Command>,
-    pub executor: Option<*const Executor<Context<Message>>>,
+    pub executor: Option<Executor<Context<Message>>>,
 }
 
 impl Command {
@@ -25,16 +25,7 @@ impl Command {
             executor: None,
         }
     }
-
-    /// Return a reference to the Comamnds Executor.
-    pub fn executor(&self) -> Option<&Executor<Context<Message>>> {
-        self.executor
-            .and_then(|executor| unsafe { executor.as_ref() })
-    }
 }
-
-unsafe impl Send for Command {}
-unsafe impl Sync for Command {}
 
 impl Hash for Command {
     fn hash<H>(&self, state: &mut H)

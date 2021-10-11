@@ -14,18 +14,15 @@ use {
     },
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Task {
     pub name: String,
     pub schedule: TaskSchedule,
-    pub executor: *const Executor<Context<()>>,
+    pub executor: Executor<Context<()>>,
     /// Immedietly schedule a task execution when the
     /// task is first loaded.
     pub on_load: bool,
 }
-
-unsafe impl Send for Task {}
-unsafe impl Sync for Task {}
 
 impl Task {
     pub fn next_execution<T>(&self, time: &DateTime<T>) -> DateTime<T>
@@ -37,17 +34,13 @@ impl Task {
             TaskSchedule::RepeatTime(_) => unimplemented!(),
         }
     }
-
-    pub fn executor(&self) -> &Executor<Context<()>> {
-        unsafe { &*self.executor as &Executor<Context<()>> }
-    }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct LoadedTask {
     pub name: String,
     pub schedule: TaskSchedule,
-    executor: *const Executor<Context<()>>,
+    executor: Executor<Context<()>>,
     /// Next command execution
     pub next_exec: DateTime<Utc>,
 }
@@ -62,14 +55,7 @@ impl LoadedTask {
             TaskSchedule::RepeatTime(_) => unimplemented!(),
         }
     }
-
-    pub fn executor(&self) -> &Executor<Context<()>> {
-        unsafe { &*self.executor as &Executor<Context<()>> }
-    }
 }
-
-unsafe impl Send for LoadedTask {}
-unsafe impl Sync for LoadedTask {}
 
 #[derive(Clone, Debug)]
 pub enum TaskSchedule {
@@ -195,7 +181,7 @@ impl InnerTaskScheduler {
             let task = task.clone();
             println!("Starting task {}", task.name);
             task::spawn(async move {
-                let res = task.executor().send(ctx.unwrap()).await;
+                let res = task.executor.send(ctx.unwrap()).await;
                 if let Err(err) = res {
                     eprintln!("Task {} returned an error: {:?}", task.name, err);
                 }
@@ -286,8 +272,9 @@ impl Default for TaskScheduler {
 #[cfg(test)]
 mod tests {
     use super::{Task, TaskSchedule, TaskScheduler};
+    use crate::core::executor::Executor;
     use chrono::Duration;
-    use std::ptr;
+    use tokio::sync::mpsc;
 
     #[test]
     fn test_task_scheduler() {
@@ -295,6 +282,8 @@ mod tests {
             .enable_all()
             .build()
             .unwrap();
+
+        let (tx, _rx) = mpsc::channel(0);
 
         rt.block_on(async move {
             async fn as_vec(task_scheduler: &TaskScheduler) -> Vec<String> {
@@ -306,7 +295,7 @@ mod tests {
                 .add_task(Task {
                     name: String::from("test1"),
                     schedule: TaskSchedule::Interval(Duration::minutes(1)),
-                    executor: ptr::null(),
+                    executor: Executor::new(tx.clone()),
                     on_load: false,
                 })
                 .await;
@@ -317,7 +306,7 @@ mod tests {
                 .add_task(Task {
                     name: String::from("test2"),
                     schedule: TaskSchedule::Interval(Duration::hours(1)),
-                    executor: ptr::null(),
+                    executor: Executor::new(tx.clone()),
                     on_load: false,
                 })
                 .await;
@@ -331,7 +320,7 @@ mod tests {
                 .add_task(Task {
                     name: String::from("test3"),
                     schedule: TaskSchedule::Interval(Duration::minutes(30)),
-                    executor: ptr::null(),
+                    executor: Executor::new(tx.clone()),
                     on_load: false,
                 })
                 .await;
