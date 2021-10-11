@@ -283,7 +283,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let (tx, _rx) = mpsc::channel(0);
+        let (tx, _rx) = mpsc::channel(1);
 
         rt.block_on(async move {
             async fn as_vec(task_scheduler: &TaskScheduler) -> Vec<String> {
