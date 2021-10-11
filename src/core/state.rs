@@ -46,6 +46,9 @@ pub struct State {
     pub(crate) hook_controller: HookController,
     // pub(crate) hooks: Arc<RwLock<HashMap<hook::Event, Vec<Hook>>>>,
     pub store: Store,
+
+    /// TODO: Move hook_id handling into hook logic.
+    pub(crate) hook_id: Arc<std::sync::atomic::AtomicUsize>,
 }
 
 impl State {
@@ -55,6 +58,7 @@ impl State {
             task_scheduler: TaskScheduler::new(),
             hook_controller: HookController::new(),
             store: Store { pool: None },
+            hook_id: Arc::default(),
         }
     }
 
@@ -103,6 +107,10 @@ impl State {
         hook: Hook,
     ) -> tokio::sync::broadcast::Receiver<super::hook::Event> {
         self.hook_controller.add_hook(hook).await
+    }
+
+    pub async fn remove_hook(&self, name: &str) {
+        self.hook_controller.remove_hook(name).await;
     }
 
     pub fn update_task_context(&self, ctx: Option<crate::bot::Context<()>>) {

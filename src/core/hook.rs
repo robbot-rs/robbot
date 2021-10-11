@@ -169,6 +169,10 @@ impl InnerHookController {
         self.hooks.insert(hook);
     }
 
+    fn remove_hook(&mut self, name: &str) {
+        self.hooks.remove(name);
+    }
+
     /// Get a new [`broadcast::Receiver`] for receiving evnets
     /// of the type `event`.
     fn get_receiver(&mut self, event: EventKind) -> broadcast::Receiver<Event> {
@@ -192,6 +196,7 @@ impl InnerHookController {
                 let rx = self.get_receiver(event);
                 let _ = tx.send(rx);
             }
+            Message::RemoveHook(hook) => self.remove_hook(&hook),
         }
     }
 
@@ -212,6 +217,7 @@ enum Message {
     AddHook(Hook),
     SendEvent(Box<Event>),
     GetReceiver(EventKind, oneshot::Sender<broadcast::Receiver<Event>>),
+    RemoveHook(String),
 }
 
 #[derive(Clone, Debug)]
@@ -244,6 +250,10 @@ impl HookController {
         let _ = self.tx.send(Message::GetReceiver(event, tx)).await;
 
         rx.await.unwrap()
+    }
+
+    pub async fn remove_hook(&self, name: &str) {
+        let _ = self.tx.send(Message::RemoveHook(name.to_owned())).await;
     }
 }
 
