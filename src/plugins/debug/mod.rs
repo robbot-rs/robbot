@@ -41,24 +41,34 @@ command!(
     executor: _taskqueue,
 );
 async fn _taskqueue(ctx: MessageContext) -> bot::Result {
-    let mut string = String::new();
+    let mut description = String::new();
 
     let tasks = ctx.state.task_scheduler.get_tasks().await;
     match tasks.len() {
-        0 => string.push_str("No tasks scheduled."),
+        0 => description.push_str("No tasks scheduled."),
         _ => {
             for task in ctx.state.task_scheduler.get_tasks().await {
-                writeln!(
-                    string,
-                    "Task *{}* scheduled at *{}*.",
+                let _ = writeln!(
+                    description,
+                    "Task `{}` scheduled at `{}`.",
                     task.name, task.next_exec
-                )
-                .unwrap();
+                );
             }
         }
     }
 
-    ctx.event.reply(&ctx.raw_ctx, string).await?;
+    ctx.event
+        .channel_id
+        .send_message(&ctx.raw_ctx, |m| {
+            m.embed(|e| {
+                e.title("__Taskqueue__");
+                e.description(description);
+                e
+            });
+            m
+        })
+        .await?;
+
     Ok(())
 }
 
