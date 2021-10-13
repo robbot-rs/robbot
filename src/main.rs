@@ -48,10 +48,10 @@ async fn main() {
 
     let state = Arc::new(state);
 
-    #[cfg(debug_assertions)]
-    plugins::debug::init(state.clone());
-
     builtin::init(state.clone());
+
+    #[cfg(feature = "debug")]
+    plugins::debug::init(state.clone());
 
     let mut client = Client::builder(&config.token)
         .intents(gateway_intents)
