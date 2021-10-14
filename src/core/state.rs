@@ -46,6 +46,7 @@ pub struct State {
     pub(crate) hook_controller: HookController,
     // pub(crate) hooks: Arc<RwLock<HashMap<hook::Event, Vec<Hook>>>>,
     pub store: Store,
+    pub(crate) gateway_connect_time: Arc<RwLock<Option<std::time::Instant>>>,
 
     /// TODO: Move hook_id handling into hook logic.
     pub(crate) hook_id: Arc<std::sync::atomic::AtomicUsize>,
@@ -58,6 +59,7 @@ impl State {
             task_scheduler: TaskScheduler::new(),
             hook_controller: HookController::new(),
             store: Store { pool: None },
+            gateway_connect_time: Arc::default(),
             hook_id: Arc::default(),
         }
     }

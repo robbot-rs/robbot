@@ -39,13 +39,29 @@ async fn _help(ctx: MessageContext) -> bot::Result {
     Ok(())
 }
 
-command!(uptime, description: "UPTIME", executor: _uptime);
+command!(uptime, description: "Show the bot uptime.", executor: _uptime);
 async fn _uptime(ctx: MessageContext) -> bot::Result {
+    let description = {
+        let connect_time = ctx.state.gateway_connect_time.read().unwrap().unwrap();
+
+        match connect_time.elapsed().as_secs() {
+            secs if secs >= 3600 => format!(
+                "{} hrs, {} min, {} sec",
+                secs / 3600,
+                (secs % 3600) / 60,
+                secs % 60
+            ),
+            secs if secs >= 60 => format!("{} min, {} sec", secs / 60, secs % 60),
+            secs => format!("{} sec", secs),
+        }
+    };
+
     ctx.event
         .channel_id
         .send_message(&ctx.raw_ctx, |m| {
             m.embed(|e| {
                 e.title("Uptime");
+                e.description(description);
                 e
             });
             m
