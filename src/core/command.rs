@@ -1,19 +1,24 @@
 use super::executor::Executor;
-use crate::bot::Context;
+use crate::{
+    bot::Context,
+    model::{GuildMessage, Message},
+};
 use std::{
     borrow::Borrow,
     collections::HashSet,
     hash::{Hash, Hasher},
 };
 
-use serenity::model::channel::Message;
-
 #[derive(Clone)]
 pub struct Command {
     pub name: String,
     pub description: String,
+    /// Whether the command should only be usable inside
+    /// guilds. Note that if the command is guild-only all
+    /// subcommands will infer the guild-only property.
+    pub guild_only: bool,
     pub sub_commands: HashSet<Command>,
-    pub executor: Option<Executor<Context<Message>>>,
+    pub executor: Option<CommandExecutor>,
 }
 
 impl Command {
@@ -21,6 +26,7 @@ impl Command {
         Self {
             name,
             description: String::new(),
+            guild_only: false,
             sub_commands: HashSet::new(),
             executor: None,
         }
@@ -48,4 +54,10 @@ impl Borrow<str> for Command {
     fn borrow(&self) -> &str {
         &self.name
     }
+}
+
+#[derive(Clone)]
+pub enum CommandExecutor {
+    Message(Executor<Context<Message>>),
+    GuildMessage(Executor<Context<GuildMessage>>),
 }
