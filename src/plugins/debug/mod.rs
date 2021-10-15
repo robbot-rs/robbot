@@ -26,11 +26,7 @@ command!(
     executor: _parse_args,
 );
 async fn _parse_args(ctx: MessageContext) -> bot::Result {
-    ctx.event
-        .reply(
-            &ctx.raw_ctx,
-            format!("Parsed Args: `{}`", ctx.args.join("`, `")),
-        )
+    ctx.respond(format!("Parsed Args: `{}`", ctx.args.join("`, `")))
         .await?;
     Ok(())
 }
@@ -91,7 +87,7 @@ async fn _await_hook(mut ctx: MessageContext) -> bot::Result {
 
     let _ = rx.recv().await.unwrap();
 
-    let _ = ctx.event.reply(&ctx.raw_ctx, "Got Event Data").await;
+    let _ = ctx.respond("Got Event Data").await;
 
     Ok(())
 }
