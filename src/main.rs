@@ -3,9 +3,12 @@ mod builtin;
 mod core;
 mod help;
 mod macros;
+mod model;
 mod plugins;
 
-use crate::core::{hook::Event, router::parse_args, router::route_command, state::State};
+use crate::core::{
+    command::CommandExecutor, hook::Event, router::parse_args, router::route_command, state::State,
+};
 use async_trait::async_trait;
 use serenity::{
     client::{bridge::gateway::GatewayIntents, Client, Context, EventHandler},
@@ -52,6 +55,10 @@ async fn main() {
 
     #[cfg(feature = "debug")]
     plugins::debug::init(state.clone());
+
+    plugins::guildsync::init(state.clone());
+    plugins::temprole::init(state.clone());
+    plugins::events::init(state.clone());
 
     let mut client = Client::builder(&config.token)
         .intents(gateway_intents)
@@ -135,6 +142,8 @@ impl EventHandler for Handler {
     }
 
     async fn message(&self, ctx: Context, message: Message) {
+        let message = model::Message::from(message);
+
         self.state
             .hook_controller
             .send_event(Event::Message(Box::new(bot::Context::new(
@@ -169,28 +178,48 @@ impl EventHandler for Handler {
             }
         };
 
+        let ctx = bot::Context {
+            raw_ctx: ctx.clone(),
+            state: self.state.clone(),
+            args: args.iter().map(|s| s.to_string()).collect(),
+            event: message.clone(),
+        };
+
+        // Return if the command is guild-only and the message is
+        // not send from within a guild.
+        if cmd.guild_only && message.guild_id.is_none() {
+            let _ = ctx
+                .respond(":x: This command can only be used in guilds.")
+                .await;
+
+            return;
+        }
+
         match &cmd.executor {
             Some(executor) => {
-                // Convert args to owned strings.
-                let args = args.iter().map(|s| s.to_string()).collect();
+                println!("executor");
 
-                let channel_id = message.channel_id;
+                let res = match executor {
+                    CommandExecutor::Message(executor) => executor.send(ctx.clone()).await,
+                    CommandExecutor::GuildMessage(executor) => {
+                        let ctx = bot::Context {
+                            raw_ctx: ctx.raw_ctx.clone(),
+                            state: ctx.state.clone(),
+                            args: ctx.args.clone(),
+                            event: model::GuildMessage::from(ctx.event.clone()),
+                        };
 
-                let res = executor
-                    .send(bot::Context {
-                        raw_ctx: ctx.clone(),
-                        state: self.state.clone(),
-                        args,
-                        event: message,
-                    })
-                    .await;
+                        executor.send(ctx).await
+                    }
+                };
 
                 if let Err(err) = res {
                     match err {
                         // Display command help message.
                         bot::Error::InvalidCommandUsage => {
-                            let _ = channel_id
-                                .send_message(&ctx, |m| {
+                            let _ = message
+                                .channel_id
+                                .send_message(&ctx.raw_ctx, |m| {
                                     m.embed(|e| {
                                         e.title(format!("Command Help: {}", cmd.name));
                                         e.description(help::command(&cmd));
@@ -201,15 +230,7 @@ impl EventHandler for Handler {
                                 .await;
                         }
                         _ => {
-                            let _ = channel_id
-                                .send_message(&ctx, |m| {
-                                    m.content(format!(
-                                        ":warning: Internal Server Error:\n`{:?}`",
-                                        err
-                                    ));
-                                    m
-                                })
-                                .await;
+                            let _ = ctx.respond(":warning: Internal Server Error").await;
                         }
                     }
                 }
@@ -220,7 +241,7 @@ impl EventHandler for Handler {
                 // Ignore error
                 let _ = message
                     .channel_id
-                    .send_message(&ctx, |m| {
+                    .send_message(&ctx.raw_ctx, |m| {
                         m.embed(|e| {
                             e.title(format!("Command Help: {}", cmd.name));
                             e.description(help::command(&cmd));
