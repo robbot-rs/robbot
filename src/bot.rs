@@ -1,13 +1,17 @@
-use crate::core::{
-    hook::{Event, EventKind, Hook},
-    state::State,
+use crate::{
+    core::{
+        hook::{Event, EventKind, Hook},
+        state::State,
+    },
+    model::{GuildMessage, Message},
 };
 use serenity::model::{
-    channel::{GuildChannel, Message, Reaction},
+    channel::{GuildChannel, Reaction},
     guild::Member,
     id::{ChannelId, GuildId, MessageId},
     user::User,
 };
+use std::borrow::Borrow;
 use std::convert::From;
 use std::error;
 use std::sync::Arc;
@@ -45,6 +49,7 @@ pub type GuildMemberAdditionContext = Context<(GuildId, Member)>;
 pub type GuildmemberRemovalContext = Context<(GuildId, User, Option<Member>)>;
 pub type GuildMemberUpdateContext = Context<(Option<Member>, Member)>;
 pub type MessageContext = Context<Message>;
+pub type GuildMessageContext = Context<GuildMessage>;
 pub type ReactionAddContext = Context<Reaction>;
 pub type ReactionRemoveContext = Context<Reaction>;
 pub type ReactionRemoveAllContext = Context<(ChannelId, MessageId)>;
@@ -85,6 +90,25 @@ impl<T> Context<T> {
         };
 
         self.state.add_hook(hook).await
+    }
+}
+
+impl<T> Context<T>
+where
+    T: Borrow<MessageId> + Borrow<ChannelId>,
+{
+    pub async fn respond(&self, content: impl std::fmt::Display) -> std::result::Result<(), Error> {
+        let message_id: MessageId = *self.event.borrow();
+        let channel_id: ChannelId = *self.event.borrow();
+
+        channel_id
+            .send_message(&self.raw_ctx, |m| {
+                m.reference_message((channel_id, message_id));
+                m.content(content);
+                m
+            })
+            .await?;
+        Ok(())
     }
 }
 
