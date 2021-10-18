@@ -1,4 +1,5 @@
 pub mod bot;
+mod builder;
 mod builtin;
 mod core;
 mod help;

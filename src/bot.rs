@@ -1,4 +1,5 @@
 use crate::{
+    builder::CreateMessage,
     core::{
         hook::{Event, EventKind, Hook},
         state::State,
@@ -92,22 +93,42 @@ impl<T> Context<T> {
     }
 }
 
-impl<T> Context<T>
-where
-    T: AsRef<MessageId> + AsRef<ChannelId>,
-{
-    pub async fn respond(&self, content: impl std::fmt::Display) -> std::result::Result<(), Error> {
-        let message_id: MessageId = *self.event.as_ref();
-        let channel_id: ChannelId = *self.event.as_ref();
-
+impl<T> Context<T> {
+    /// Send a message in a channel.
+    pub async fn send_message<S>(
+        &self,
+        channel_id: ChannelId,
+        message: S,
+    ) -> std::result::Result<(), Error>
+    where
+        S: Into<CreateMessage>,
+    {
         channel_id
             .send_message(&self.raw_ctx, |m| {
-                m.reference_message((channel_id, message_id));
-                m.content(content);
+                message.into().fill_builder(m);
                 m
             })
             .await?;
         Ok(())
+    }
+}
+
+impl<T> Context<T>
+where
+    T: AsRef<MessageId> + AsRef<ChannelId>,
+{
+    /// Respond to the message author.
+    pub async fn respond<S>(&self, message: S) -> std::result::Result<(), Error>
+    where
+        S: Into<CreateMessage>,
+    {
+        let message_id: MessageId = *self.event.as_ref();
+        let channel_id: ChannelId = *self.event.as_ref();
+
+        let mut message = message.into();
+        message.reference_message((channel_id, message_id));
+
+        self.send_message(channel_id, message).await
     }
 }
 
