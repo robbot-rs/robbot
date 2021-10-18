@@ -123,7 +123,7 @@ impl From<Message> for GuildMessage {
             stickers: message.stickers,
             referenced_message: message
                 .referenced_message
-                .and_then(|referenced_message| Some(Box::new(Self::from(*referenced_message)))),
+                .map(|referenced_message| Box::new(Self::from(*referenced_message))),
         }
     }
 }
@@ -155,9 +155,7 @@ impl From<serenity::model::channel::Message> for Message {
             message_reference: t.message_reference,
             flags: t.flags,
             stickers: t.stickers,
-            referenced_message: t
-                .referenced_message
-                .and_then(|t| Some(Box::new(Message::from(*t)))),
+            referenced_message: t.referenced_message.map(|t| Box::new(Message::from(*t))),
         }
     }
 }
