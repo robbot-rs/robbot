@@ -57,10 +57,6 @@ async fn main() {
     #[cfg(feature = "debug")]
     plugins::debug::init(state.clone());
 
-    plugins::guildsync::init(state.clone());
-    plugins::temprole::init(state.clone());
-    plugins::events::init(state.clone());
-
     let mut client = Client::builder(&config.token)
         .intents(gateway_intents)
         .event_handler(Handler { state })
