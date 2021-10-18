@@ -11,7 +11,6 @@ use serenity::model::{
     id::{ChannelId, GuildId, MessageId},
     user::User,
 };
-use std::borrow::Borrow;
 use std::convert::From;
 use std::error;
 use std::sync::Arc;
@@ -95,11 +94,11 @@ impl<T> Context<T> {
 
 impl<T> Context<T>
 where
-    T: Borrow<MessageId> + Borrow<ChannelId>,
+    T: AsRef<MessageId> + AsRef<ChannelId>,
 {
     pub async fn respond(&self, content: impl std::fmt::Display) -> std::result::Result<(), Error> {
-        let message_id: MessageId = *self.event.borrow();
-        let channel_id: ChannelId = *self.event.borrow();
+        let message_id: MessageId = *self.event.as_ref();
+        let channel_id: ChannelId = *self.event.as_ref();
 
         channel_id
             .send_message(&self.raw_ctx, |m| {

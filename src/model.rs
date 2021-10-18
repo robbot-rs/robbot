@@ -8,7 +8,7 @@ use serenity::model::{
     id::{ChannelId, GuildId, MessageId, RoleId, WebhookId},
     user::User,
 };
-use std::{borrow::Borrow, convert::From};
+use std::convert::From;
 
 #[derive(Clone, Debug)]
 pub struct Message {
@@ -39,14 +39,14 @@ pub struct Message {
     pub referenced_message: Option<Box<Message>>,
 }
 
-impl Borrow<MessageId> for Message {
-    fn borrow(&self) -> &MessageId {
+impl AsRef<MessageId> for Message {
+    fn as_ref(&self) -> &MessageId {
         &self.id
     }
 }
 
-impl Borrow<ChannelId> for Message {
-    fn borrow(&self) -> &ChannelId {
+impl AsRef<ChannelId> for Message {
+    fn as_ref(&self) -> &ChannelId {
         &self.channel_id
     }
 }
@@ -82,14 +82,14 @@ pub struct GuildMessage {
     pub referenced_message: Option<Box<GuildMessage>>,
 }
 
-impl Borrow<MessageId> for GuildMessage {
-    fn borrow(&self) -> &MessageId {
+impl AsRef<MessageId> for GuildMessage {
+    fn as_ref(&self) -> &MessageId {
         &self.id
     }
 }
 
-impl Borrow<ChannelId> for GuildMessage {
-    fn borrow(&self) -> &ChannelId {
+impl AsRef<ChannelId> for GuildMessage {
+    fn as_ref(&self) -> &ChannelId {
         &self.channel_id
     }
 }
