@@ -1,10 +1,10 @@
 //!
-use crate::core::{command::Command, task::Task};
-use std::{
-    borrow::Borrow,
-    collections::HashSet,
-    hash::{Hash, Hasher},
-};
+// use crate::core::{command::Command, task::Task};
+// use std::{
+//     borrow::Borrow,
+//     collections::HashSet,
+//     hash::{Hash, Hasher},
+// };
 
 // // /// A `Module` is a collection of [`Command`]s, [`Task`]s and
 // // /// [`Hook`]s organised under a unique name.
