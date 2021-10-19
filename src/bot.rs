@@ -99,17 +99,18 @@ impl<T> Context<T> {
         &self,
         channel_id: ChannelId,
         message: S,
-    ) -> std::result::Result<(), Error>
+    ) -> std::result::Result<Message, Error>
     where
         S: Into<CreateMessage>,
     {
-        channel_id
+        let message = channel_id
             .send_message(&self.raw_ctx, |m| {
                 message.into().fill_builder(m);
                 m
             })
             .await?;
-        Ok(())
+
+        Ok(message.into())
     }
 }
 
@@ -117,8 +118,8 @@ impl<T> Context<T>
 where
     T: AsRef<MessageId> + AsRef<ChannelId>,
 {
-    /// Respond to the message author.
-    pub async fn respond<S>(&self, message: S) -> std::result::Result<(), Error>
+    /// Respond to the message author. Returns the newly created message.
+    pub async fn respond<S>(&self, message: S) -> std::result::Result<Message, Error>
     where
         S: Into<CreateMessage>,
     {
