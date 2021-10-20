@@ -18,7 +18,7 @@ pub fn command(attr: TokenStream, input: TokenStream) -> TokenStream {
 
     let ident_str = ident.to_string();
 
-    let mut exec_fn = input.clone();
+    let mut exec_fn = input;
     exec_fn.sig.ident = Ident::new(&format!("__{}", ident), Span::call_site());
 
     let command_ident = exec_fn.sig.ident.clone();
