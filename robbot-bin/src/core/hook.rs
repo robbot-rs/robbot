@@ -1,11 +1,7 @@
 //! Hooks
 //!
-use std::{
-    borrow::Borrow,
-    collections::{HashMap, HashSet},
-    convert::TryFrom,
-    hash::{Hash, Hasher},
-};
+use robbot::hook::{EventKind, Hook};
+use std::collections::{HashMap, HashSet};
 use tokio::{
     sync::{broadcast, mpsc, oneshot},
     task,
@@ -15,117 +11,67 @@ use tokio::{
 /// is too small, some events may be dropped before received.
 const QUEUE_SIZE: usize = 32;
 
-#[derive(Clone, Debug)]
-pub struct Hook {
-    pub name: String,
-    pub on_event: EventKind,
-}
-
-impl Hash for Hook {
-    fn hash<H>(&self, state: &mut H)
-    where
-        H: Hasher,
-    {
-        self.name.hash(state);
-    }
-}
-
-impl PartialEq for Hook {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-    }
-}
-
-impl Eq for Hook {}
-
-impl Borrow<str> for Hook {
-    fn borrow(&self) -> &str {
-        &self.name
-    }
-}
-
-pub struct InvalidEventKindError;
-
-#[allow(clippy::all)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum EventKind {
-    // ApplicationCommandCreate,
-    // ApplicationCommandDelete,
-    // ApplicationCommandUpdate,
-    // CacheReady,
-    // CategoryCreate,
-    // CategoryDelete,
-    ChannelCreate,
-    ChannelDelete,
-    // ChannelPinsUpdate,
-    // ChannelUpdate,
-    // GuildBanAddition,
-    // GuildBanRemoval,
-    // GuildCreate,
-    // GuildDelete,
-    // GuildEmojisUpdate,
-    // GuildIntegrationsUpdate,
-    GuildMemberAddition,
-    GuildMemberRemoval,
-    GuildMemberUpdate,
-    // GuildMembersChunk,
-    // GuildRoleCreate,
-    // GuildRoleDelete,
-    // GuildRoleUpdate,
-    // GuildUnavaliable,
-    // GuildUpdate,
-    // IntegrationCreate,
-    // IntegrationDelete,
-    // InteractionCreate,
-    // InviteCreate,
-    // InviteDelete,
-    Message,
-    // MessageDelete,
-    // MessageDeleteBulk,
-    // MessageUpdate,
-    // PresenceReplace,
-    // PresenceUpdate,
-    ReactionAdd,
-    ReactionRemove,
-    ReactionRemoveAll,
-    // Ready,
-    // Resume,
-    // SharedStageUpdate,
-    // StageInstanceCreate,
-    // StageInstanceDelete,
-    // StageInstanceUpdate,
-    // ThreadCreate,
-    // ThreadDelete,
-    // ThreadListSync,
-    // ThreadMemberUpdate,
-    // ThreadMembersUpdate,
-    // ThreadUpdate,
-    // TypingStart,
-    // Unknown,
-    // UserUpdate,
-    // VoiceServerUpdate,
-    // VoiceStateUpdate,
-    // WebhookUpdate,
-}
-
-impl TryFrom<&str> for EventKind {
-    type Error = InvalidEventKindError;
-
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        match s {
-            "ChannelCreate" => Ok(Self::ChannelCreate),
-            "ChannelDelete" => Ok(Self::ChannelDelete),
-            "GuildMemberAddition" => Ok(Self::GuildMemberAddition),
-            "GuildMemberRemoval" => Ok(Self::GuildMemberRemoval),
-            "GuildMemberUpdate" => Ok(Self::GuildMemberUpdate),
-            "Message" => Ok(Self::Message),
-            "ReactionAdd" => Ok(Self::ReactionAdd),
-            "ReactionRemove" => Ok(Self::ReactionRemove),
-            "ReactionRemoveAll" => Ok(Self::ReactionRemoveAll),
-            _ => Err(InvalidEventKindError),
-        }
-    }
-}
+// #[allow(clippy::all)]
+// #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+// pub enum EventKind {
+//     // ApplicationCommandCreate,
+//     // ApplicationCommandDelete,
+//     // ApplicationCommandUpdate,
+//     // CacheReady,
+//     // CategoryCreate,
+//     // CategoryDelete,
+//     ChannelCreate,
+//     ChannelDelete,
+//     // ChannelPinsUpdate,
+//     // ChannelUpdate,
+//     // GuildBanAddition,
+//     // GuildBanRemoval,
+//     // GuildCreate,
+//     // GuildDelete,
+//     // GuildEmojisUpdate,
+//     // GuildIntegrationsUpdate,
+//     GuildMemberAddition,
+//     GuildMemberRemoval,
+//     GuildMemberUpdate,
+//     // GuildMembersChunk,
+//     // GuildRoleCreate,
+//     // GuildRoleDelete,
+//     // GuildRoleUpdate,
+//     // GuildUnavaliable,
+//     // GuildUpdate,
+//     // IntegrationCreate,
+//     // IntegrationDelete,
+//     // InteractionCreate,
+//     // InviteCreate,
+//     // InviteDelete,
+//     Message,
+//     // MessageDelete,
+//     // MessageDeleteBulk,
+//     // MessageUpdate,
+//     // PresenceReplace,
+//     // PresenceUpdate,
+//     ReactionAdd,
+//     ReactionRemove,
+//     ReactionRemoveAll,
+//     // Ready,
+//     // Resume,
+//     // SharedStageUpdate,
+//     // StageInstanceCreate,
+//     // StageInstanceDelete,
+//     // StageInstanceUpdate,
+//     // ThreadCreate,
+//     // ThreadDelete,
+//     // ThreadListSync,
+//     // ThreadMemberUpdate,
+//     // ThreadMembersUpdate,
+//     // ThreadUpdate,
+//     // TypingStart,
+//     // Unknown,
+//     // UserUpdate,
+//     // VoiceServerUpdate,
+//     // VoiceStateUpdate,
+//     // WebhookUpdate,
+// }
 
 #[derive(Clone)]
 pub enum Event {

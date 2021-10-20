@@ -1,11 +1,12 @@
 use crate::{
-    core::{
-        hook::{Event, EventKind, Hook},
-        state::State,
-    },
+    core::{hook::Event, state::State},
     model::GuildMessage,
 };
-use robbot::{builder::CreateMessage, model::Message};
+use robbot::{
+    builder::CreateMessage,
+    hook::{EventKind, Hook},
+    model::Message,
+};
 use serenity::model::{
     channel::{GuildChannel, Reaction},
     guild::Member,

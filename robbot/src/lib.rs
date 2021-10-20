@@ -2,9 +2,11 @@ pub mod bot;
 pub mod builder;
 pub mod context;
 pub mod executor;
+pub mod hook;
 pub mod model;
 
 pub use context::Context;
+pub use robbot_derive::command;
 
 use std::collections::HashSet;
 

@@ -1,10 +1,11 @@
 use super::router::{find_command, parse_args};
 use crate::core::{
     command::Command,
-    hook::{Hook, HookController},
+    hook::HookController,
     store::Store,
     task::{Task, TaskScheduler},
 };
+use robbot::hook::Hook;
 use std::{
     collections::HashSet,
     error,
