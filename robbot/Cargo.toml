@@ -1,0 +1,10 @@
+[package]
+name = "robbot"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+tokio = "1.12.0"
+async-trait = "0.1.51"
+serenity = "0.10.9"
+chrono = "0.4.19"
