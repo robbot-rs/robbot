@@ -6,7 +6,9 @@ pub struct Task<T> {
     pub name: String,
     pub schedule: TaskSchedule,
     pub executor: Executor<T>,
-
+    /// Immedietly schedule a task execution when the
+    /// task is first loaded. After that the next task
+    /// will be queued using [`TaskSchedule`].
     pub on_load: bool,
 }
 
@@ -28,6 +30,12 @@ impl<T> Task<T> {
     }
 }
 
+/// A type to schedule command execution. [`TaskSchedule`] can
+/// be one of two variants:
+/// - `Interval`: Schedule the future task based on the interval
+/// between the previous task.
+/// - `RepeatTime`: Schedule the future task when the specific
+/// time conditions are met.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TaskSchedule {
     Interval(Duration),
