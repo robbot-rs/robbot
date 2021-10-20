@@ -1,10 +1,17 @@
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
-use syn::{parse_macro_input, Ident, ItemFn};
+use std::collections::HashMap;
+use syn::{
+    parse::{Parse, ParseStream, Result},
+    parse_macro_input,
+    punctuated::Punctuated,
+    Expr, Ident, ItemFn, Token,
+};
 
 #[proc_macro_attribute]
-pub fn command(_attr: TokenStream, input: TokenStream) -> TokenStream {
+pub fn command(attr: TokenStream, input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(attr as Args);
     let input = parse_macro_input!(input as ItemFn);
 
     let ident = input.clone().sig.ident;
@@ -15,6 +22,11 @@ pub fn command(_attr: TokenStream, input: TokenStream) -> TokenStream {
     exec_fn.sig.ident = Ident::new(&format!("__{}", ident), Span::call_site());
 
     let command_ident = exec_fn.sig.ident.clone();
+
+    let recurse = args.args.iter().map(|(ident, expr)| match expr {
+        Some(expr) => quote! { cmd.#ident(#expr); },
+        _ => unimplemented!(),
+    });
 
     let expanded = quote! {
         #exec_fn
@@ -27,9 +39,45 @@ pub fn command(_attr: TokenStream, input: TokenStream) -> TokenStream {
             let mut cmd = crate::core::command::Command::new(#ident_str);
             cmd.executor = Some(cmd_exec);
 
+            #(#recurse)*
+
             cmd
         }
     };
 
     TokenStream::from(expanded)
+}
+
+#[derive(Clone, Debug)]
+struct Args {
+    args: HashMap<Ident, Option<Expr>>,
+}
+
+impl Parse for Args {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let args = Punctuated::<Expr, Token![,]>::parse_terminated(input)?;
+
+        let mut map = HashMap::new();
+
+        for arg in args {
+            match arg {
+                Expr::Assign(expr) => {
+                    let ident = match *expr.left {
+                        Expr::Path(expr) => expr.path.segments.first().unwrap().ident.clone(),
+                        _ => panic!("Invalid expr: {:?}", expr.left),
+                    };
+
+                    map.insert(ident, Some(*expr.right));
+                }
+                Expr::Path(expr) => {
+                    let ident = expr.path.segments.first().unwrap().ident.clone();
+
+                    map.insert(ident, None);
+                }
+                _ => panic!("Invalid expr: {:?}", arg),
+            }
+        }
+
+        Ok(Self { args: map })
+    }
 }
