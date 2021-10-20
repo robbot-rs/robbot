@@ -1,2 +1,2 @@
 [workspace]
-members = ["robbot-bin", "robbot-derive"]
+members = ["robbot", "robbot-bin", "robbot-derive"]
