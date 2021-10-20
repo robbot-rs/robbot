@@ -3,9 +3,9 @@
 //! in debug build mode.
 use crate::{
     bot::{self, Error::InvalidCommandUsage, MessageContext},
-    core::{hook::EventKind, state::State},
+    core::state::State,
 };
-use robbot_derive::command;
+use robbot::{builder::CreateMessage, command, hook::EventKind};
 use std::{convert::TryFrom, fmt::Write, sync::Arc};
 
 pub fn init(state: Arc<State>) {
@@ -45,17 +45,13 @@ async fn taskqueue(ctx: MessageContext) -> bot::Result {
         }
     }
 
-    ctx.event
-        .channel_id
-        .send_message(&ctx.raw_ctx, |m| {
-            m.embed(|e| {
-                e.title("__Taskqueue__");
-                e.description(description);
-                e
-            });
-            m
-        })
-        .await?;
+    ctx.respond(CreateMessage::new(|m| {
+        m.embed(|e| {
+            e.title("__Taskqueue__");
+            e.description(description);
+        });
+    }))
+    .await?;
 
     Ok(())
 }
@@ -68,7 +64,10 @@ async fn await_hook(mut ctx: MessageContext) -> bot::Result {
 
     let event_kind = match EventKind::try_from(ctx.args.remove(0).as_str()) {
         Ok(event_kind) => event_kind,
-        Err(_) => return Err(InvalidCommandUsage),
+        Err(_) => {
+            let _ = ctx.respond(":x: Invalid event type.").await;
+            return Ok(());
+        }
     };
 
     let mut rx = ctx.state.hook_controller.get_receiver(event_kind).await;
