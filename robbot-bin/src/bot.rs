@@ -1,11 +1,11 @@
 use crate::{
-    builder::CreateMessage,
     core::{
         hook::{Event, EventKind, Hook},
         state::State,
     },
-    model::{GuildMessage, Message},
+    model::GuildMessage,
 };
+use robbot::{builder::CreateMessage, model::Message};
 use serenity::model::{
     channel::{GuildChannel, Reaction},
     guild::Member,
@@ -90,6 +90,31 @@ impl<T> Context<T> {
         };
 
         self.state.add_hook(hook).await
+    }
+}
+
+#[async_trait::async_trait]
+impl<T> robbot::Context for Context<T>
+where
+    T: Send + Sync,
+{
+    type Error = serenity::Error;
+
+    async fn send_message<S>(
+        &self,
+        channel_id: ChannelId,
+        message: S,
+    ) -> std::result::Result<Message, Self::Error>
+    where
+        S: Into<CreateMessage> + Send + Sync,
+    {
+        let message = channel_id
+            .send_message(&self.raw_ctx, |m| {
+                message.into().fill_builder(m);
+                m
+            })
+            .await?;
+        Ok(message.into())
     }
 }
 

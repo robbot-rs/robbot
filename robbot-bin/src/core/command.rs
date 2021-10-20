@@ -1,8 +1,6 @@
 use super::executor::Executor;
-use crate::{
-    bot::Context,
-    model::{GuildMessage, Message},
-};
+use crate::bot::Context;
+use robbot::model::{GuildMessage, Message};
 use std::{
     borrow::Borrow,
     collections::HashSet,

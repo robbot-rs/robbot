@@ -139,7 +139,7 @@ impl EventHandler for Handler {
     }
 
     async fn message(&self, ctx: Context, message: Message) {
-        let message = model::Message::from(message);
+        let message = robbot::model::Message::from(message);
 
         self.state
             .hook_controller
@@ -201,7 +201,7 @@ impl EventHandler for Handler {
                             raw_ctx: ctx.raw_ctx.clone(),
                             state: ctx.state.clone(),
                             args: ctx.args.clone(),
-                            event: model::GuildMessage::from(ctx.event.clone()),
+                            event: robbot::model::GuildMessage::from(ctx.event.clone()),
                         };
 
                         executor.send(ctx).await
