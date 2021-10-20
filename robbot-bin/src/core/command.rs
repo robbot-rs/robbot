@@ -34,6 +34,19 @@ impl Command {
             executor: None,
         }
     }
+
+    /// Set the `description` field of the command.
+    pub fn description<T>(&mut self, description: T)
+    where
+        T: ToString,
+    {
+        self.description = description.to_string();
+    }
+
+    /// Set the `guild_only` field of the command.
+    pub fn guild_only(&mut self, guild_only: bool) {
+        self.guild_only = guild_only;
+    }
 }
 
 impl Hash for Command {
