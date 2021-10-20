@@ -3,7 +3,10 @@ use crate::{
     core::{command::Command, router::route_command, state::State},
     help,
 };
-use robbot_derive::command;
+use robbot::{builder::CreateMessage, command};
+use serenity::utils::Color;
+
+const EMBED_COLOR: Color = Color::from_rgb(0xFF, 0xA6, 0x00);
 
 pub fn init(state: &State) {
     const COMMANDS: &[fn() -> Command] = &[help, uptime, version];
@@ -32,18 +35,14 @@ async fn help(ctx: MessageContext) -> bot::Result {
         }
     };
 
-    ctx.event
-        .channel_id
-        .send_message(&ctx.raw_ctx, |m| {
-            m.embed(|e| {
-                e.title("Help");
-                e.description(description);
-                e
-            });
-            m
-        })
-        .await
-        .unwrap();
+    ctx.respond(CreateMessage::new(|m| {
+        m.embed(|e| {
+            e.color(EMBED_COLOR);
+            e.title("Help");
+            e.description(description);
+        });
+    }))
+    .await?;
 
     Ok(())
 }
@@ -65,18 +64,14 @@ async fn uptime(ctx: MessageContext) -> bot::Result {
         }
     };
 
-    ctx.event
-        .channel_id
-        .send_message(&ctx.raw_ctx, |m| {
-            m.embed(|e| {
-                e.title("Uptime");
-                e.description(description);
-                e
-            });
-            m
-        })
-        .await
-        .unwrap();
+    ctx.respond(CreateMessage::new(|m| {
+        m.embed(|e| {
+            e.color(EMBED_COLOR);
+            e.title("Uptime");
+            e.description(description);
+        });
+    }))
+    .await?;
 
     Ok(())
 }
@@ -101,17 +96,14 @@ async fn version(ctx: MessageContext) -> bot::Result {
         "ROBBOT_BUILT environment variable is undefined"
     );
 
-    ctx.event
-        .channel_id
-        .send_message(&ctx.raw_ctx, |m| {
-            m.embed(|e| {
-                e.title("Version");
-                e.description(format!("{}\nBuilt: {}", VERSION, BUILT));
-                e
-            })
-        })
-        .await
-        .unwrap();
+    ctx.respond(CreateMessage::new(|m| {
+        m.embed(|e| {
+            e.color(EMBED_COLOR);
+            e.title("Version");
+            e.description(format!("{}\nBuilt: {}", VERSION, BUILT));
+        });
+    }))
+    .await?;
 
     Ok(())
 }
