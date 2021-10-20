@@ -2,7 +2,7 @@ use robbot_derive::command;
 use {
     crate::{
         bot::{self, MessageContext},
-        core::{command::Command, state::State},
+        core::{command::Command, router::route_command, state::State},
         help,
     },
     std::sync::Arc,
@@ -16,12 +16,23 @@ pub fn init(state: Arc<State>) {
     }
 }
 
-// command!(help, description: "HELP", executor: _help);
-#[command]
+#[command(description = "Show the global help message or a help message for a command.")]
 async fn help(ctx: MessageContext) -> bot::Result {
-    let string = {
+    let description = {
+        let mut args: Vec<&str> = ctx.args.iter().map(|s| s.as_str()).collect();
+
         let commands = ctx.state.commands.read().unwrap();
-        help::global(&commands)
+
+        match args.is_empty() {
+            // Try to show command help.
+            false => match route_command(&commands, &mut args) {
+                Some(command) => help::command(&command),
+                // Cannot find command, show global help instead.
+                None => help::global(&commands),
+            },
+            // Show global help.
+            true => help::global(&commands),
+        }
     };
 
     ctx.event
@@ -29,7 +40,7 @@ async fn help(ctx: MessageContext) -> bot::Result {
         .send_message(&ctx.raw_ctx, |m| {
             m.embed(|e| {
                 e.title("Help");
-                e.description(string);
+                e.description(description);
                 e
             });
             m
@@ -40,8 +51,7 @@ async fn help(ctx: MessageContext) -> bot::Result {
     Ok(())
 }
 
-// command!(uptime, description: "Show the bot uptime.", executor: _uptime);
-#[command]
+#[command(description = "Show the bot uptime.")]
 async fn uptime(ctx: MessageContext) -> bot::Result {
     let description = {
         let connect_time = ctx.state.gateway_connect_time.read().unwrap().unwrap();
@@ -74,7 +84,7 @@ async fn uptime(ctx: MessageContext) -> bot::Result {
     Ok(())
 }
 
-#[command]
+#[command(description = "Show the bot version.")]
 async fn version(ctx: MessageContext) -> bot::Result {
     #[cfg(debug_assertions)]
     const VERSION: &str = "`None`";
