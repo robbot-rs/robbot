@@ -3,9 +3,9 @@
 //! in debug build mode.
 use crate::{
     bot::{self, Error::InvalidCommandUsage, MessageContext},
-    command,
     core::{hook::EventKind, state::State},
 };
+use robbot_derive::command;
 use std::{convert::TryFrom, fmt::Write, sync::Arc};
 
 pub fn init(state: Arc<State>) {
@@ -15,28 +15,20 @@ pub fn init(state: Arc<State>) {
     state.add_command(await_hook(), Some("debug")).unwrap();
 }
 
-command!(
+crate::command!(
     debug,
     description: "Debugging and core info command. Unavaliable in release build."
 );
 
-command!(
-    parse_args,
-    description: "Print out all parsed arguments.",
-    executor: _parse_args,
-);
-async fn _parse_args(ctx: MessageContext) -> bot::Result {
+#[command(description = "Print out all parsed arguments.")]
+async fn parse_args(ctx: MessageContext) -> bot::Result {
     ctx.respond(format!("Parsed Args: `{}`", ctx.args.join("`, `")))
         .await?;
     Ok(())
 }
 
-command!(
-    taskqueue,
-    description: "WIP",
-    executor: _taskqueue,
-);
-async fn _taskqueue(ctx: MessageContext) -> bot::Result {
+#[command(description = "List upcoming scheduled tasks.")]
+async fn taskqueue(ctx: MessageContext) -> bot::Result {
     let mut description = String::new();
 
     let tasks = ctx.state.task_scheduler.get_tasks().await;
@@ -68,12 +60,8 @@ async fn _taskqueue(ctx: MessageContext) -> bot::Result {
     Ok(())
 }
 
-command!(
-    await_hook,
-    description: "Await a single hook of a specific type, then drop the receiver.",
-    executor: _await_hook,
-);
-async fn _await_hook(mut ctx: MessageContext) -> bot::Result {
+#[command(description = "Await a single hook of a specific type.")]
+async fn await_hook(mut ctx: MessageContext) -> bot::Result {
     if ctx.args.len() != 1 {
         return Err(InvalidCommandUsage);
     }
