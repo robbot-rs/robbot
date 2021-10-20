@@ -4,9 +4,13 @@ pub mod context;
 pub mod executor;
 pub mod hook;
 pub mod model;
+pub mod task;
 
-pub use context::Context;
 pub use robbot_derive::command;
+pub use {
+    context::Context,
+    task::{Task, TaskSchedule},
+};
 
 use std::collections::HashSet;
 
@@ -17,12 +21,4 @@ pub struct Command {
     pub guild_only: bool,
     pub sub_commands: HashSet<Self>,
     // pub executor: Option<CommandExecutor>,
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
 }
