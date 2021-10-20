@@ -94,6 +94,12 @@ impl AsRef<ChannelId> for GuildMessage {
     }
 }
 
+impl AsRef<GuildId> for GuildMessage {
+    fn as_ref(&self) -> &GuildId {
+        &self.guild_id
+    }
+}
+
 impl From<Message> for GuildMessage {
     fn from(message: Message) -> Self {
         Self {
