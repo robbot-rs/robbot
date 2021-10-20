@@ -75,26 +75,44 @@ impl TryFrom<&str> for EventKind {
 }
 
 pub enum EventData {
-    ChannelCreate(GuildChannel),
-    ChannelDelete(GuildChannel),
-    GuildMemberAddition {
-        guild_id: GuildId,
-        member: Member,
-    },
-    GuildMemberRemoval {
-        guild_id: GuildId,
-        user: User,
-        member: Option<Member>,
-    },
-    GuildMemberUpdate {
-        old_member: Option<Member>,
-        member: Member,
-    },
-    Message(Message),
-    ReactionAdd(Reaction),
-    ReactionRemove(Reaction),
-    ReactionRemoveAll {
-        channel_id: ChannelId,
-        message_id: MessageId,
-    },
+    ChannelCreate(Box<ChannelCreateData>),
+    ChannelDelete(Box<ChannelDeleteData>),
+    GuildMemberAddition(Box<GuildMemberAdditionData>),
+    GuildMemberRemoval(Box<GuildMemberRemovalData>),
+    GuildMemberUpdate(Box<GuildMemberUpdateData>),
+    Message(Box<MessageData>),
+    ReactionAdd(Box<ReactionAddData>),
+    ReactionRemove(Box<ReactionRemoveData>),
+    ReactionRemoveAll(Box<ReactionRemoveAllData>),
+}
+
+pub struct ChannelCreateData(pub GuildChannel);
+
+pub struct ChannelDeleteData(pub GuildChannel);
+
+pub struct GuildMemberAdditionData {
+    pub guild_id: GuildId,
+    pub member: Member,
+}
+
+pub struct GuildMemberRemovalData {
+    pub guild_id: GuildId,
+    pub user: User,
+    pub member: Option<Member>,
+}
+
+pub struct GuildMemberUpdateData {
+    pub old_member: Option<Member>,
+    pub member: Member,
+}
+
+pub struct MessageData(pub Message);
+
+pub struct ReactionAddData(pub Reaction);
+
+pub struct ReactionRemoveData(pub Reaction);
+
+pub struct ReactionRemoveAllData {
+    pub channel_id: ChannelId,
+    pub message_id: MessageId,
 }
