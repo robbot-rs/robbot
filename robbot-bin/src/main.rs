@@ -52,7 +52,7 @@ async fn main() {
 
     let state = Arc::new(state);
 
-    builtin::init(state.clone());
+    builtin::init(&state);
 
     #[cfg(feature = "debug")]
     plugins::debug::init(state.clone());

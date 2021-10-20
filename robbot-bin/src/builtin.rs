@@ -1,14 +1,11 @@
-use robbot_derive::command;
-use {
-    crate::{
-        bot::{self, MessageContext},
-        core::{command::Command, router::route_command, state::State},
-        help,
-    },
-    std::sync::Arc,
+use crate::{
+    bot::{self, MessageContext},
+    core::{command::Command, router::route_command, state::State},
+    help,
 };
+use robbot_derive::command;
 
-pub fn init(state: Arc<State>) {
+pub fn init(state: &State) {
     const COMMANDS: &[fn() -> Command] = &[help, uptime, version];
 
     for f in COMMANDS {
