@@ -1,6 +1,6 @@
 [package]
-name = "robbot"
-version = "0.2.0"
+name = "robbot-bin"
+version = "0.3.0"
 edition = "2018"
 
 [features]
@@ -36,4 +36,5 @@ futures = "0.3.17"
 reqwest = "0.11.4"
 itoa = "0.4.8"
 dtoa = "0.4.8"
-robbot-derive = { version = "0.1", path = "../robbot-derive" }
+robbot-derive = { version = "0.1.0", path = "../robbot-derive" }
+robbot = { version = "0.1.0", path = "../robbot" }
