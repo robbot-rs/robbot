@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use serenity::model::{
     channel::{
         Attachment, ChannelMention, Embed, MessageActivity, MessageApplication, MessageFlags,
@@ -10,7 +11,7 @@ use serenity::model::{
 };
 use std::convert::From;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Message {
     pub id: MessageId,
     pub attachments: Vec<Attachment>,
@@ -53,7 +54,7 @@ impl AsRef<ChannelId> for Message {
 
 /// A [`Message`] is sent inside a guild. Guarantees some
 /// fields to have a non `None` type compared to [`Message`].
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GuildMessage {
     pub id: MessageId,
     pub attachments: Vec<Attachment>,
