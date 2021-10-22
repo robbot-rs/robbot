@@ -1,5 +1,9 @@
 image: "rust:latest"
 
+cache:
+  paths:
+    - $CI_PROJECT_DIR/target
+
 stages:
   - setup
   - fmt
