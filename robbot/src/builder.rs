@@ -1,9 +1,10 @@
+use serde::{Deserialize, Serialize};
 use serenity::utils::Color;
 use std::convert::{From, Into};
 
 /// [`CreateMessage`] is used to construct a new
 /// message.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CreateMessage {
     content: Option<String>,
     reference_message: Option<serenity::model::channel::MessageReference>,
@@ -74,7 +75,7 @@ where
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CreateEmbed {
     color: Option<Color>,
     description: Option<String>,
