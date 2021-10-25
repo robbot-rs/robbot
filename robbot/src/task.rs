@@ -88,7 +88,7 @@ impl TaskSchedule {
     /// Panics if `hour`, `minute` or `second` are invalid.
     pub fn daily_at(hour: u32, minute: u32, second: u32) -> Self {
         let now = Utc::now();
-        let mut schedule = now
+        let schedule = now
             .with_hour(hour)
             .unwrap()
             .with_minute(minute)
