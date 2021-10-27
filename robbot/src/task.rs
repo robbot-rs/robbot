@@ -14,17 +14,21 @@ pub struct Task<T> {
 
 impl<T> Task<T> {
     /// Calculate the next execution time for the task based on the
-    /// provided time.
+    /// current time `time`.
     pub fn next_execution<Tz>(&self, time: DateTime<Tz>) -> DateTime<Tz>
     where
         Tz: TimeZone,
     {
         match self.schedule {
             TaskSchedule::Interval(duration) => time + duration,
-            TaskSchedule::RepeatTime(timestamp, interval) => {
+            TaskSchedule::RepeatTime(mut timestamp, interval) => {
                 let offset = time.offset().clone();
 
-                DateTime::from_utc(timestamp.naive_utc(), offset) + interval
+                while time >= timestamp {
+                    timestamp = timestamp + interval;
+                }
+
+                DateTime::from_utc(timestamp.naive_utc(), offset)
             }
         }
     }
@@ -39,6 +43,8 @@ impl<T> Task<T> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TaskSchedule {
     Interval(Duration),
+    /// RepeatTime schedules the task when the `DateTime` is reached,
+    /// then waits the `Duration` before the next task.
     RepeatTime(DateTime<Utc>, Duration),
 }
 
@@ -88,7 +94,7 @@ impl TaskSchedule {
     /// Panics if `hour`, `minute` or `second` are invalid.
     pub fn daily_at(hour: u32, minute: u32, second: u32) -> Self {
         let now = Utc::now();
-        let schedule = now
+        let mut schedule = now
             .with_hour(hour)
             .unwrap()
             .with_minute(minute)
@@ -97,6 +103,10 @@ impl TaskSchedule {
             .unwrap()
             .with_nanosecond(0)
             .unwrap();
+
+        if now > schedule {
+            schedule = schedule + Duration::days(1);
+        }
 
         Self::RepeatTime(schedule, Duration::days(1))
     }
