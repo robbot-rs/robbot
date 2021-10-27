@@ -3,7 +3,7 @@ use crate::{
     core::{command::Command, router::route_command, state::State},
     help,
 };
-use robbot::{builder::CreateMessage, command};
+use robbot::{builder::CreateMessage, command, Context};
 use serenity::utils::Color;
 
 const EMBED_COLOR: Color = Color::from_rgb(0xFF, 0xA6, 0x00);

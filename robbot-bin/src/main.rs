@@ -10,6 +10,7 @@ use crate::core::{
     command::CommandExecutor, hook::Event, router::parse_args, router::route_command, state::State,
 };
 use async_trait::async_trait;
+use robbot::Context as ContextExt;
 use serenity::{
     client::{bridge::gateway::GatewayIntents, Client, Context, EventHandler},
     model::{

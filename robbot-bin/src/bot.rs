@@ -13,10 +13,7 @@ use serenity::model::{
     id::{ChannelId, GuildId, MessageId},
     user::User,
 };
-use std::convert::From;
-use std::error;
-use std::sync::Arc;
-use std::time::Duration;
+use std::{convert::From, error, sync::Arc, time::Duration};
 use tokio::{select, time};
 
 #[derive(Debug)]
@@ -140,22 +137,21 @@ impl<T> Context<T> {
     }
 }
 
-impl<T> Context<T>
+impl<T> AsRef<ChannelId> for Context<T>
 where
-    T: AsRef<MessageId> + AsRef<ChannelId>,
+    T: AsRef<ChannelId>,
 {
-    /// Respond to the message author. Returns the newly created message.
-    pub async fn respond<S>(&self, message: S) -> std::result::Result<Message, Error>
-    where
-        S: Into<CreateMessage>,
-    {
-        let message_id: MessageId = *self.event.as_ref();
-        let channel_id: ChannelId = *self.event.as_ref();
+    fn as_ref(&self) -> &ChannelId {
+        self.event.as_ref()
+    }
+}
 
-        let mut message = message.into();
-        message.reference_message((channel_id, message_id));
-
-        self.send_message(channel_id, message).await
+impl<T> AsRef<MessageId> for Context<T>
+where
+    T: AsRef<MessageId>,
+{
+    fn as_ref(&self) -> &MessageId {
+        self.event.as_ref()
     }
 }
 

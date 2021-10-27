@@ -5,7 +5,7 @@ use crate::{
     bot::{self, Error::InvalidCommandUsage, MessageContext},
     core::state::State,
 };
-use robbot::{builder::CreateMessage, command, hook::EventKind};
+use robbot::{builder::CreateMessage, command, hook::EventKind, Context};
 use std::{convert::TryFrom, fmt::Write, sync::Arc};
 
 pub fn init(state: Arc<State>) {
