@@ -8,7 +8,7 @@ use robbot::{
     model::Message,
 };
 use serenity::model::{
-    channel::{GuildChannel, Reaction},
+    channel::{GuildChannel, Reaction, ReactionType},
     guild::Member,
     id::{ChannelId, GuildId, MessageId},
     user::User,
@@ -113,6 +113,22 @@ where
             })
             .await?;
         Ok(message.into())
+    }
+
+    async fn create_reaction<S>(
+        &self,
+        message_id: MessageId,
+        channel_id: ChannelId,
+        reaction: S,
+    ) -> std::result::Result<(), Self::Error>
+    where
+        S: Into<ReactionType> + Send,
+    {
+        self.raw_ctx
+            .http
+            .create_reaction(channel_id.0, message_id.0, &reaction.into())
+            .await?;
+        Ok(())
     }
 }
 
