@@ -36,7 +36,7 @@ macro_rules! task {
 macro_rules! hook {
     ($name:ident, $event:expr, $executor:expr $(,)?) => {
         fn $name(state: ::std::sync::Arc<$crate::core::state::State>) {
-            let hook = $crate::core::hook::Hook {
+            let hook = robbot::hook::Hook {
                 name: stringify!($name).to_owned(),
                 on_event: $event,
             };
