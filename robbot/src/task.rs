@@ -179,10 +179,10 @@ mod tests {
         };
 
         task.schedule = TaskSchedule::hours(1);
-        assert_eq!(task.next_execution(now.clone()), now + Duration::hours(1));
+        assert_eq!(task.next_execution(now), now + Duration::hours(1));
 
         task.schedule = TaskSchedule::days(2);
-        assert_eq!(task.next_execution(now.clone()), now + Duration::days(2));
+        assert_eq!(task.next_execution(now), now + Duration::days(2));
 
         task.schedule = TaskSchedule::daily_at(23, 0, 0);
         let mut output = now
@@ -199,6 +199,6 @@ mod tests {
             output = output + Duration::days(1);
         }
 
-        assert_eq!(task.next_execution(now.clone()), output);
+        assert_eq!(task.next_execution(now), output);
     }
 }
