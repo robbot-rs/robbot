@@ -1,15 +1,24 @@
 pub mod bot;
 mod builtin;
+mod config;
 mod core;
 mod help;
 mod macros;
 mod model;
 mod plugins;
 
-use crate::core::{
-    command::CommandExecutor, hook::Event, router::parse_args, router::route_command, state::State,
+/// Path of the default config.toml file.
+const DEFAULT_CONFIG: &str = "./config.toml";
+
+use crate::{
+    config::Config,
+    core::{
+        command::CommandExecutor, hook::Event, router::parse_args, router::route_command,
+        state::State,
+    },
 };
 use async_trait::async_trait;
+use clap::{App, Arg};
 use robbot::Context as ContextExt;
 use serenity::{
     client::{bridge::gateway::GatewayIntents, Client, Context, EventHandler},
@@ -24,6 +33,25 @@ use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
+    let matches = App::new("robbot")
+        .version("0.3.1")
+        .author("")
+        .about("")
+        .arg(
+            Arg::with_name("config")
+                .short("c")
+                .long("config")
+                .value_name("FILE")
+                .help("Provide a path to the config file")
+                .takes_value(true),
+        )
+        .get_matches();
+
+    let config = matches.value_of("config").unwrap_or(DEFAULT_CONFIG);
+
+    // Load the config.toml file.
+    let config = Config::load(config);
+
     let gateway_intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_MEMBERS
         | GatewayIntents::GUILD_BANS
@@ -37,14 +65,15 @@ async fn main() {
 
     let mut state = State::new();
 
-    // Load config.json file
-    let config = load_config();
-
     // Create a store
     state.store.pool = Some(
         sqlx::MySqlPool::connect(&format!(
             "mysql://{}:{}@{}:{}/{}?ssl-mode=DISABLED",
-            config.user, config.password, config.host, config.port, config.database
+            config.database.user,
+            config.database.password,
+            config.database.host,
+            config.database.port,
+            config.database.database
         ))
         .await
         .unwrap(),
@@ -305,19 +334,4 @@ impl EventHandler for Handler {
             }))
             .await;
     }
-}
-
-#[derive(serde::Deserialize)]
-struct Config {
-    token: String,
-    host: String,
-    port: u16,
-    user: String,
-    password: String,
-    database: String,
-}
-
-fn load_config() -> Config {
-    let file = std::fs::File::open("config.json").unwrap();
-    serde_json::from_reader(&file).unwrap()
 }
