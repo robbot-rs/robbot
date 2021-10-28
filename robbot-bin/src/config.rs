@@ -31,3 +31,34 @@ pub struct Database {
     pub password: String,
     pub database: String,
 }
+
+impl Database {
+    pub fn connect_string(&self) -> String {
+        format!(
+            "{}://{}:{}@{}:{}/{}?ssl-mode=DISABLED",
+            self.driver, self.user, self.password, self.host, self.port, self.database
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Database;
+
+    #[test]
+    fn test_database_connect_string() {
+        let database = Database {
+            driver: String::from("mysql"),
+            host: String::from("127.0.0.1"),
+            port: 3306,
+            user: String::from("robbot"),
+            password: String::from("pw"),
+            database: String::from("db"),
+        };
+
+        assert_eq!(
+            database.connect_string(),
+            "mysql://robbot:pw@127.0.0.1:3306/db?ssl-mode=DISABLED"
+        )
+    }
+}
