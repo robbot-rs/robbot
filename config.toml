@@ -1,0 +1,12 @@
+# Replace with your discord bot token.
+token = "<YOUR_TOKEN>"
+
+# Database
+[database]
+# Currently only supports myqsl.
+driver = "mysql"
+host = "127.0.0.1"
+port = 3306
+user = "robbot"
+password = "robbot"
+database = "robbot"
