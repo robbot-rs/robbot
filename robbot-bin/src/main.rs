@@ -315,7 +315,7 @@ impl EventHandler for Handler {
     }
 
     async fn ready(&self, ctx: Context, _: serenity::model::gateway::Ready) {
-        println!("[BOT] Bot online");
+        log::info!("[BOT] Bot online");
 
         {
             let mut connect_time = self.state.gateway_connect_time.write().unwrap();

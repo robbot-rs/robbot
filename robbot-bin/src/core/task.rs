@@ -1,17 +1,13 @@
 //! Automatic timed task scheduling.
 //!
-//!
 
-use {
-    super::executor::Executor,
-    crate::bot::Context,
-    chrono::{DateTime, Duration, Utc},
-    std::collections::VecDeque,
-    tokio::{
-        select,
-        sync::{mpsc, oneshot},
-        task,
-    },
+use crate::{bot::Context, core::executor::Executor};
+use chrono::{DateTime, Duration, Utc};
+use std::{collections::VecDeque, time::Instant};
+use tokio::{
+    select,
+    sync::{mpsc, oneshot},
+    task,
 };
 
 #[derive(Clone)]
@@ -179,11 +175,18 @@ impl InnerTaskScheduler {
         {
             let ctx = self.context.clone();
             let task = task.clone();
-            println!("Starting task {}", task.name);
             task::spawn(async move {
+                log::info!("Spawning task {}", task.name);
+                let start_time = Instant::now();
+
                 let res = task.executor.send(ctx.unwrap()).await;
-                if let Err(err) = res {
-                    eprintln!("Task {} returned an error: {:?}", task.name, err);
+                match res {
+                    Ok(_) => log::info!(
+                        "Task {} completed after {}s",
+                        task.name,
+                        start_time.elapsed().as_secs()
+                    ),
+                    Err(err) => log::error!("Task {} returned an error: {:?}", task.name, err),
                 }
             });
         }
