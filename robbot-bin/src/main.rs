@@ -67,16 +67,9 @@ async fn main() {
 
     // Create a store
     state.store.pool = Some(
-        sqlx::MySqlPool::connect(&format!(
-            "mysql://{}:{}@{}:{}/{}?ssl-mode=DISABLED",
-            config.database.user,
-            config.database.password,
-            config.database.host,
-            config.database.port,
-            config.database.database
-        ))
-        .await
-        .unwrap(),
+        sqlx::MySqlPool::connect(&config.database.connect_string())
+            .await
+            .unwrap(),
     );
 
     let state = Arc::new(state);
