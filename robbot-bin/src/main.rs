@@ -3,6 +3,7 @@ mod builtin;
 mod config;
 mod core;
 mod help;
+mod logger;
 mod macros;
 mod model;
 mod plugins;
@@ -33,6 +34,8 @@ use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
+    logger::init();
+
     let matches = App::new("robbot")
         .version("0.3.1")
         .author("")
@@ -48,6 +51,8 @@ async fn main() {
         .get_matches();
 
     let config = matches.value_of("config").unwrap_or(DEFAULT_CONFIG);
+
+    log::info!("Using config file {:?}", config);
 
     // Load the config.toml file.
     let config = Config::load(config);
