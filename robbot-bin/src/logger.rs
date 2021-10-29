@@ -8,7 +8,7 @@ pub fn init() {
     log::set_max_level(LevelFilter::max());
 
     #[cfg(not(debug_assertions))]
-    log::set_max_level(Level::Info);
+    log::set_max_level(LevelFilter::Info);
 }
 
 pub struct Logger;
