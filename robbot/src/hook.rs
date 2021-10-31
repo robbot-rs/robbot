@@ -7,8 +7,8 @@ use serenity::model::{
 };
 use std::{
     borrow::Borrow,
-    convert::TryFrom,
     hash::{Hash, Hasher},
+    str::FromStr,
 };
 
 #[derive(Clone, Debug)]
@@ -55,10 +55,10 @@ pub enum EventKind {
 
 pub struct InvalidEventKindError;
 
-impl TryFrom<&str> for EventKind {
-    type Error = InvalidEventKindError;
+impl FromStr for EventKind {
+    type Err = InvalidEventKindError;
 
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "ChannelCreate" => Ok(Self::ChannelCreate),
             "ChannelDelete" => Ok(Self::ChannelDelete),
