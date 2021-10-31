@@ -11,6 +11,8 @@ use std::{
 pub struct Command {
     pub name: String,
     pub description: String,
+    pub usage: String,
+    pub example: String,
     /// Whether the command should only be usable inside
     /// guilds. Note that if the command is guild-only all
     /// subcommands will infer the guild-only property.
@@ -27,6 +29,8 @@ impl Command {
         Self {
             name: name.to_string(),
             description: String::new(),
+            usage: String::new(),
+            example: String::new(),
             guild_only: false,
             sub_commands: HashSet::new(),
             executor: None,
@@ -39,6 +43,20 @@ impl Command {
         T: ToString,
     {
         self.description = description.to_string();
+    }
+
+    pub fn usage<T>(&mut self, usage: T)
+    where
+        T: ToString,
+    {
+        self.usage = usage.to_string();
+    }
+
+    pub fn example<T>(&mut self, example: T)
+    where
+        T: ToString,
+    {
+        self.example = example.to_string();
     }
 
     /// Set the `guild_only` field of the command.
