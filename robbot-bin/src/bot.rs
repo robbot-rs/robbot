@@ -6,6 +6,7 @@ use robbot::{
     builder::CreateMessage,
     hook::{EventKind, Hook},
     model::Message,
+    Error, Result,
 };
 use serenity::model::{
     channel::{GuildChannel, Reaction, ReactionType},
@@ -13,32 +14,8 @@ use serenity::model::{
     id::{ChannelId, GuildId, MessageId},
     user::User,
 };
-use std::{convert::From, error, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 use tokio::{select, time};
-
-#[derive(Debug)]
-pub enum Error {
-    InvalidCommandUsage,
-    Unimplemented,
-    /// Indicates that the executor dropped before
-    /// sending a response. This likely means that
-    /// the executing thread panicked.
-    NoResponse,
-    BoxError(Box<dyn error::Error + Send + Sync + 'static>),
-    /// Hook collector timed out.
-    HookTimeout,
-}
-
-impl<T> From<T> for Error
-where
-    T: error::Error + Send + Sync + 'static,
-{
-    fn from(err: T) -> Self {
-        Self::BoxError(Box::new(err))
-    }
-}
-
-pub type Result = std::result::Result<(), Error>;
 
 // Context aliases.
 pub type ChannelCreateContext = Context<GuildChannel>;

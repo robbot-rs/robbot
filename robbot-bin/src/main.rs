@@ -20,7 +20,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use clap::{App, Arg};
-use robbot::Context as ContextExt;
+use robbot::{Context as ContextExt, Error};
 use serenity::{
     client::{bridge::gateway::GatewayIntents, Client, Context, EventHandler},
     model::{
@@ -238,7 +238,7 @@ impl EventHandler for Handler {
                 if let Err(err) = res {
                     match err {
                         // Display command help message.
-                        bot::Error::InvalidCommandUsage => {
+                        Error::InvalidCommandUsage => {
                             let _ = message
                                 .channel_id
                                 .send_message(&ctx.raw_ctx, |m| {

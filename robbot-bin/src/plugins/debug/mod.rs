@@ -1,11 +1,10 @@
 //! # Debug plugin
 //! Adds a few info commands under the debug module
 //! in debug build mode.
-use crate::{
-    bot::{self, Error::InvalidCommandUsage, MessageContext},
-    core::state::State,
+use crate::{bot::MessageContext, core::state::State};
+use robbot::{
+    builder::CreateMessage, command, hook::EventKind, Context, Error::InvalidCommandUsage, Result,
 };
-use robbot::{builder::CreateMessage, command, hook::EventKind, Context};
 use std::{convert::TryFrom, fmt::Write, sync::Arc};
 
 pub fn init(state: Arc<State>) {
@@ -21,14 +20,14 @@ crate::command!(
 );
 
 #[command(description = "Print out all parsed arguments.")]
-async fn parse_args(ctx: MessageContext) -> bot::Result {
+async fn parse_args(ctx: MessageContext) -> Result {
     ctx.respond(format!("Parsed Args: `{}`", ctx.args.join("`, `")))
         .await?;
     Ok(())
 }
 
 #[command(description = "List upcoming scheduled tasks.")]
-async fn taskqueue(ctx: MessageContext) -> bot::Result {
+async fn taskqueue(ctx: MessageContext) -> Result {
     let mut description = String::new();
 
     let tasks = ctx.state.task_scheduler.get_tasks().await;
@@ -57,7 +56,7 @@ async fn taskqueue(ctx: MessageContext) -> bot::Result {
 }
 
 #[command(description = "Await a single hook of a specific type.")]
-async fn await_hook(mut ctx: MessageContext) -> bot::Result {
+async fn await_hook(mut ctx: MessageContext) -> Result {
     if ctx.args.len() != 1 {
         return Err(InvalidCommandUsage);
     }

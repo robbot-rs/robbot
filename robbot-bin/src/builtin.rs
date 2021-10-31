@@ -1,9 +1,9 @@
 use crate::{
-    bot::{self, MessageContext},
+    bot::MessageContext,
     core::{command::Command, router::route_command, state::State},
     help,
 };
-use robbot::{builder::CreateMessage, command, Context};
+use robbot::{builder::CreateMessage, command, Context, Result};
 use serenity::utils::Color;
 
 const EMBED_COLOR: Color = Color::from_rgb(0xFF, 0xA6, 0x00);
@@ -17,7 +17,7 @@ pub fn init(state: &State) {
 }
 
 #[command(description = "Show the global help message or a help message for a command.")]
-async fn help(ctx: MessageContext) -> bot::Result {
+async fn help(ctx: MessageContext) -> Result {
     let description = {
         let mut args: Vec<&str> = ctx.args.iter().map(|s| s.as_str()).collect();
 
@@ -48,7 +48,7 @@ async fn help(ctx: MessageContext) -> bot::Result {
 }
 
 #[command(description = "Show the bot uptime.")]
-async fn uptime(ctx: MessageContext) -> bot::Result {
+async fn uptime(ctx: MessageContext) -> Result {
     let description = {
         let connect_time = ctx.state.gateway_connect_time.read().unwrap().unwrap();
 
@@ -77,7 +77,7 @@ async fn uptime(ctx: MessageContext) -> bot::Result {
 }
 
 #[command(description = "Show the bot version.")]
-async fn version(ctx: MessageContext) -> bot::Result {
+async fn version(ctx: MessageContext) -> Result {
     #[cfg(debug_assertions)]
     const VERSION: &str = "`None`";
 
