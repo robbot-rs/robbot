@@ -5,7 +5,7 @@ use crate::{bot::MessageContext, core::state::State};
 use robbot::{
     builder::CreateMessage, command, hook::EventKind, Context, Error::InvalidCommandUsage, Result,
 };
-use std::{convert::TryFrom, fmt::Write, sync::Arc};
+use std::{fmt::Write, sync::Arc};
 
 pub fn init(state: Arc<State>) {
     state.add_command(debug(), None).unwrap();
@@ -21,7 +21,9 @@ crate::command!(
 
 #[command(description = "Print out all parsed arguments.")]
 async fn parse_args(ctx: MessageContext) -> Result {
-    ctx.respond(format!("Parsed Args: `{}`", ctx.args.join("`, `")))
+    let args: Vec<&str> = ctx.args.iter().map(|s| s.as_str()).collect();
+
+    ctx.respond(format!("Parsed Args: `{}`", args.join("`, `")))
         .await?;
     Ok(())
 }
@@ -61,7 +63,7 @@ async fn await_hook(mut ctx: MessageContext) -> Result {
         return Err(InvalidCommandUsage);
     }
 
-    let event_kind = match EventKind::try_from(ctx.args.remove(0).as_str()) {
+    let event_kind: EventKind = match ctx.args.pop_first() {
         Ok(event_kind) => event_kind,
         Err(_) => {
             let _ = ctx.respond(":x: Invalid event type.").await;
