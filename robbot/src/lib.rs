@@ -1,3 +1,4 @@
+pub mod arguments;
 pub mod bot;
 pub mod builder;
 pub mod command;
