@@ -6,7 +6,7 @@ use robbot::{
     builder::CreateMessage,
     hook::{EventKind, Hook},
     model::Message,
-    Error, Result,
+    Error,
 };
 use serenity::model::{
     channel::{GuildChannel, Reaction, ReactionType},
