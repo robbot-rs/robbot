@@ -30,10 +30,15 @@ impl Arguments {
     /// This allows for easy extraction using the `?` operator.
     /// # Examples
     /// ```
-    /// let mut args = Arguments::from(vec!["hello", "123"]);
+    /// use robbot::Arguments;
+    /// # fn main() -> Result<(), robbot::Error> {
+    ///     let mut args = Arguments::from(vec!["hello", "123"]);
     ///
-    /// let arg1: String = args.take()?;
-    /// let arg2: i64 = arg.take()?;
+    ///     let arg1: String = args.take()?;
+    ///     let arg2: i64 = args.take()?;
+    ///
+    /// #   Ok(())
+    /// # }
     /// ```
     pub fn take<T>(&mut self) -> Result<T, Error>
     where
@@ -50,11 +55,12 @@ impl Arguments {
     }
 }
 
-impl<T> From<T> for Arguments
+impl<T, I> From<T> for Arguments
 where
-    T: Iterator<Item = String>,
+    T: IntoIterator<Item = I>,
+    I: ToString,
 {
     fn from(t: T) -> Self {
-        Self(t.collect())
+        Self(t.into_iter().map(|item| item.to_string()).collect())
     }
 }
