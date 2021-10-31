@@ -71,6 +71,18 @@ impl Arguments {
     }
 }
 
+impl PartialEq<Vec<&str>> for Arguments {
+    fn eq(&self, other: &Vec<&str>) -> bool {
+        self.0.eq(other)
+    }
+}
+
+impl PartialEq<Vec<String>> for Arguments {
+    fn eq(&self, other: &Vec<String>) -> bool {
+        self.0.eq(other)
+    }
+}
+
 impl<T, I> From<T> for Arguments
 where
     T: IntoIterator<Item = I>,
