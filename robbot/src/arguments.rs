@@ -92,3 +92,32 @@ where
         Self(t.into_iter().map(|item| item.to_string()).collect())
     }
 }
+
+impl<I> FromIterator<I> for Arguments
+where
+    I: ToString,
+{
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = I>,
+    {
+        Self::from(iter)
+    }
+}
+
+impl AsRef<[String]> for Arguments {
+    fn as_ref(&self) -> &[String] {
+        self.0.as_ref()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Arguments;
+
+    #[test]
+    fn test_arguments() {
+        let arguments = Arguments::from(vec!["Hello", "123"]);
+        assert_eq!(arguments, vec!["Hello", "123"]);
+    }
+}
