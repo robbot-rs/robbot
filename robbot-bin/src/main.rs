@@ -327,7 +327,7 @@ impl EventHandler for Handler {
             .update_context(Some(bot::Context {
                 raw_ctx: ctx,
                 state: self.state.clone(),
-                args: Vec::new(),
+                args: robbot::Arguments::new(),
                 event: (),
             }))
             .await;

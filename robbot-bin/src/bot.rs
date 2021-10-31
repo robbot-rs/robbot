@@ -3,6 +3,7 @@ use crate::{
     model::GuildMessage,
 };
 use robbot::{
+    arguments::Arguments,
     builder::CreateMessage,
     hook::{EventKind, Hook},
     model::Message,
@@ -35,7 +36,7 @@ pub type TaskContext = Context<()>;
 pub struct Context<T> {
     pub raw_ctx: serenity::client::Context,
     pub state: Arc<State>,
-    pub args: Vec<String>,
+    pub args: Arguments,
     pub event: T,
 }
 
@@ -44,7 +45,7 @@ impl<T> Context<T> {
         Self {
             raw_ctx,
             state,
-            args: Vec::new(),
+            args: Arguments::new(),
             event,
         }
     }
