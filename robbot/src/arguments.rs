@@ -27,6 +27,13 @@ impl Arguments {
         self.0.get(i)
     }
 
+    /// Removes and returns the element at position `index`.
+    /// # Panics
+    /// Panics if `index` is out of bounds.
+    pub fn remove(&mut self, index: usize) -> String {
+        self.0.remove(index)
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &String> {
         self.0.iter()
     }
@@ -62,7 +69,7 @@ impl Arguments {
     {
         match self.is_empty() {
             false => {
-                let item = self.0.remove(0);
+                let item = self.remove(0);
 
                 item.parse().or(Err(Error::InvalidCommandUsage))
             }
