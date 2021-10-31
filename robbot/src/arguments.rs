@@ -1,5 +1,5 @@
 use crate::bot::Error;
-use std::{convert::From, iter::FromIterator, str::FromStr};
+use std::{convert::From, iter::FromIterator, ops::Index, str::FromStr};
 
 /// An alias for `[Arguments]`.
 pub type Args = Arguments;
@@ -60,6 +60,8 @@ impl Arguments {
     ///     let arg1: String = args.pop_first()?;
     ///     let arg2: i64 = args.pop_first()?;
     ///
+    ///     assert_eq!(arg1, "hello");
+    ///     assert_eq!(arg2, 123i64);
     /// #   Ok(())
     /// # }
     /// ```
@@ -76,6 +78,40 @@ impl Arguments {
             true => Err(Error::InvalidCommandUsage),
         }
     }
+
+    /// Join the rest of arguments into a single argument. If the list
+    /// is empty or parsing fails an `[Error::InvalidCommandUsage]` error
+    /// is returned.
+    ///
+    /// This allows for easy extraction using the `?` operator.
+    /// # Examples
+    /// ```
+    /// use robbot::Arguments;
+    /// # fn main() -> Result<(), robbot::Error> {
+    ///     let mut args = Arguments::from(vec!["Hello", "World"]);
+    ///
+    ///     let arg: String = args.join_rest()?;
+    ///     assert_eq!(arg, "Hello World");
+    ///
+    /// #   Ok(())
+    /// # }
+    /// ```
+    pub fn join_rest<T>(&mut self) -> Result<T, Error>
+    where
+        T: FromStr,
+    {
+        match self.is_empty() {
+            false => {
+                let mut items = Vec::new();
+                for _ in 0..self.len() {
+                    items.push(self.remove(0));
+                }
+
+                items.join(" ").parse().or(Err(Error::InvalidCommandUsage))
+            }
+            true => Err(Error::InvalidCommandUsage),
+        }
+    }
 }
 
 impl PartialEq<Vec<&str>> for Arguments {
@@ -87,6 +123,14 @@ impl PartialEq<Vec<&str>> for Arguments {
 impl PartialEq<Vec<String>> for Arguments {
     fn eq(&self, other: &Vec<String>) -> bool {
         self.0.eq(other)
+    }
+}
+
+impl Index<usize> for Arguments {
+    type Output = str;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get(index).unwrap()
     }
 }
 
