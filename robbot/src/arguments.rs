@@ -1,6 +1,5 @@
 use crate::bot::Error;
-use std::convert::From;
-use std::str::FromStr;
+use std::{convert::From, iter::FromIterator, str::FromStr};
 
 /// An alias for `[Arguments]`.
 pub type Args = Arguments;
@@ -9,6 +8,11 @@ pub type Args = Arguments;
 pub struct Arguments(Vec<String>);
 
 impl Arguments {
+    /// Create a new empty argument list.
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
     /// Returns the number of arguments.
     pub fn len(&self) -> usize {
         self.0.len()
@@ -23,6 +27,18 @@ impl Arguments {
         self.0.get(i)
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = &String> {
+        self.0.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut String> {
+        self.0.iter_mut()
+    }
+
+    pub fn into_iter(self) -> impl Iterator<Item = String> {
+        self.0.into_iter()
+    }
+
     /// Pop the first argument from the list. If it
     /// is empty or parsing the argument failed an
     /// `[Error::InvalidCommandUsage]` error is returned.
@@ -34,13 +50,13 @@ impl Arguments {
     /// # fn main() -> Result<(), robbot::Error> {
     ///     let mut args = Arguments::from(vec!["hello", "123"]);
     ///
-    ///     let arg1: String = args.take()?;
-    ///     let arg2: i64 = args.take()?;
+    ///     let arg1: String = args.pop_first()?;
+    ///     let arg2: i64 = args.pop_first()?;
     ///
     /// #   Ok(())
     /// # }
     /// ```
-    pub fn take<T>(&mut self) -> Result<T, Error>
+    pub fn pop_first<T>(&mut self) -> Result<T, Error>
     where
         T: FromStr,
     {
