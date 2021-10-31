@@ -9,6 +9,11 @@ use std::{
 pub struct Command {
     pub name: String,
     pub description: String,
+    /// Defines the usage field in the help message.
+    /// Required arguments should be enclosed by `[]`,
+    /// optional arguments should be enclosed by `<>`.
+    pub usage: String,
+    pub example_usage: String,
     pub guild_only: bool,
     pub sub_commands: HashSet<Self>,
 }
@@ -23,6 +28,8 @@ impl Command {
         Self {
             name: name.to_string(),
             description: String::new(),
+            usage: String::new(),
+            example_usage: String::new(),
             guild_only: false,
             sub_commands: HashSet::new(),
         }
@@ -34,6 +41,22 @@ impl Command {
         T: ToString,
     {
         self.description = description.to_string();
+    }
+
+    /// Set the `usage` field of the command.
+    pub fn usage<T>(&mut self, usage: T)
+    where
+        T: ToString,
+    {
+        self.usage = usage.to_string();
+    }
+
+    /// Set the `example_usage` field of the command.
+    pub fn example_usage<T>(&mut self, example_usage: T)
+    where
+        T: ToString,
+    {
+        self.example_usage = example_usage.to_string();
     }
 
     /// Set the `guild_only` field of the command.
