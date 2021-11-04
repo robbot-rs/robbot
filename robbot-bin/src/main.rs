@@ -253,6 +253,7 @@ impl EventHandler for Handler {
                         }
                         _ => {
                             let _ = ctx.respond(":warning: Internal Server Error").await;
+                            log::error!("Command error: {:?}", err);
                         }
                     }
                 }
