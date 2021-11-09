@@ -71,8 +71,8 @@ async fn main() {
     let mut state = State::new();
 
     // Create a store
-    state.store.pool = Some(
-        sqlx::MySqlPool::connect(&config.database.connect_string())
+    state.store = Some(
+        crate::core::store::MainStore::new(&config.database.connect_string())
             .await
             .unwrap(),
     );
