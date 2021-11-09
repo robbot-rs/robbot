@@ -50,6 +50,14 @@ where
         self.store.get(query).await
     }
 
+    pub async fn get_all<T>(&self) -> sqlx::Result<Vec<T>>
+    where
+        T: StoreData<S> + Send + Default,
+        T::DataQuery: Send + Sync,
+    {
+        self.get::<T, T::DataQuery>(None).await
+    }
+
     /// Returns the first item matching the query.
     ///
     /// If you need all items matching the query, use [`Self::get`].
