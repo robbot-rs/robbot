@@ -199,7 +199,11 @@ impl MysqlSerializer {
                     values.push(format!("{} {}", self.cols[i], self.vals[i]));
                 }
 
-                format!("CREATE TABLE {} ({})", self.table_name, values.join(", "))
+                format!(
+                    "CREATE TABLE IF NOT EXISTS {} ({})",
+                    self.table_name,
+                    values.join(", ")
+                )
             }
             QueryKind::Delete => {
                 let mut filter = String::new();
