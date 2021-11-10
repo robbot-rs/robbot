@@ -1,5 +1,5 @@
 use crate::bot::Error;
-use std::{convert::From, iter::FromIterator, ops::Index, str::FromStr};
+use std::{iter::FromIterator, ops::Index, str::FromStr};
 
 /// An alias for `[Arguments]`.
 pub type Args = Arguments;
@@ -40,10 +40,6 @@ impl Arguments {
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut String> {
         self.0.iter_mut()
-    }
-
-    pub fn into_iter(self) -> impl Iterator<Item = String> {
-        self.0.into_iter()
     }
 
     /// Pop the first argument from the list. If it
@@ -134,13 +130,12 @@ impl Index<usize> for Arguments {
     }
 }
 
-impl<T, I> From<T> for Arguments
-where
-    T: IntoIterator<Item = I>,
-    I: ToString,
-{
-    fn from(t: T) -> Self {
-        Self(t.into_iter().map(|item| item.to_string()).collect())
+impl IntoIterator for Arguments {
+    type Item = String;
+    type IntoIter = IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter(self)
     }
 }
 
@@ -152,13 +147,26 @@ where
     where
         T: IntoIterator<Item = I>,
     {
-        Self::from(iter)
+        Self(iter.into_iter().map(|item| item.to_string()).collect())
     }
 }
 
 impl AsRef<[String]> for Arguments {
     fn as_ref(&self) -> &[String] {
         self.0.as_ref()
+    }
+}
+
+pub struct IntoIter(Arguments);
+
+impl Iterator for IntoIter {
+    type Item = String;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.0.is_empty() {
+            false => Some(self.0.remove(0)),
+            true => None,
+        }
     }
 }
 
