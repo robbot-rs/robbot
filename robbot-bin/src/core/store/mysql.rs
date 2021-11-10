@@ -76,7 +76,8 @@ impl Store for MysqlStore {
 
         let mut serializer = MysqlSerializer::new(table_name, QueryKind::Delete);
 
-        serializer.cond = query.into_vals();
+        serializer.target_where = true;
+        query.serialize(&mut serializer).unwrap();
 
         sqlx::query(&serializer.into_sql())
             .execute(&self.pool)
@@ -95,11 +96,12 @@ impl Store for MysqlStore {
 
         let mut serializer = MysqlSerializer::new(table_name, QueryKind::Select);
 
-        if let Some(query) = query {
-            serializer.cond = query.into_vals();
-        }
-
         data.serialize(&mut serializer).unwrap();
+
+        if let Some(query) = query {
+            serializer.target_where = true;
+            query.serialize(&mut serializer).unwrap();
+        }
 
         let sql = serializer.into_sql();
         let mut rows = sqlx::query(&sql).fetch(&self.pool);
@@ -126,9 +128,10 @@ impl Store for MysqlStore {
 
         let mut serializer = MysqlSerializer::new(table_name, QueryKind::Select);
 
-        serializer.cond = query.into_vals();
-
         data.serialize(&mut serializer).unwrap();
+
+        serializer.target_where = true;
+        query.serialize(&mut serializer).unwrap();
 
         let sql = serializer.into_sql();
         let row = sqlx::query(&sql).fetch_one(&self.pool).await.unwrap();
@@ -172,7 +175,11 @@ pub struct MysqlSerializer {
     cols: Vec<String>,
     vals: Vec<String>,
     /// Conditions
-    cond: Vec<(String, String)>,
+    where_cols: Vec<String>,
+    where_vals: Vec<String>,
+    /// Whether new serialized values should be targeted
+    /// as the where statement.
+    target_where: bool,
 }
 
 impl MysqlSerializer {
@@ -182,7 +189,29 @@ impl MysqlSerializer {
             kind,
             cols: Vec::new(),
             vals: Vec::new(),
-            cond: Vec::new(),
+            where_cols: Vec::new(),
+            where_vals: Vec::new(),
+            target_where: false,
+        }
+    }
+
+    fn write_column<T>(&mut self, column: T)
+    where
+        T: ToString,
+    {
+        match self.target_where {
+            false => self.cols.push(column.to_string()),
+            true => self.where_cols.push(column.to_string()),
+        }
+    }
+
+    fn write_value<T>(&mut self, val: T)
+    where
+        T: ToString,
+    {
+        match self.target_where {
+            false => self.vals.push(val.to_string()),
+            true => self.where_vals.push(val.to_string()),
         }
     }
 
@@ -207,18 +236,20 @@ impl MysqlSerializer {
             }
             QueryKind::Delete => {
                 let mut filter = String::new();
-                if !self.cond.is_empty() {
-                    filter = format!(
-                        "WHERE {}",
-                        self.cond
-                            .iter()
-                            .map(|(col, val)| format!("{} = {}", col, val))
-                            .collect::<Vec<String>>()
-                            .join(" AND ")
-                    )
+                if !self.where_cols.is_empty() {
+                    if self.where_cols.len() != self.where_vals.len() {
+                        panic!("Mismatched number of cols and vals");
+                    }
+
+                    let mut vals = Vec::new();
+                    for i in 0..self.where_cols.len() {
+                        vals.push(format!("{} = {}", self.where_cols[i], self.where_vals[i]));
+                    }
+
+                    filter = format!(" WHERE {}", vals.join(" AND "));
                 }
 
-                format!("DELETE FROM {} {}", self.table_name, filter)
+                format!("DELETE FROM {}{}", self.table_name, filter)
             }
             QueryKind::Insert => {
                 if self.cols.len() != self.vals.len() {
@@ -234,19 +265,21 @@ impl MysqlSerializer {
             }
             QueryKind::Select => {
                 let mut filter = String::new();
-                if !self.cond.is_empty() {
-                    filter = format!(
-                        "WHERE {}",
-                        self.cond
-                            .iter()
-                            .map(|(col, val)| format!("{} = {}", col, val))
-                            .collect::<Vec<String>>()
-                            .join(" AND ")
-                    )
+                if !self.where_cols.is_empty() {
+                    if self.where_cols.len() != self.where_vals.len() {
+                        panic!("Mismatched number of cols and vals");
+                    }
+
+                    let mut vals = Vec::new();
+                    for i in 0..self.where_cols.len() {
+                        vals.push(format!("{} = {}", self.where_cols[i], self.where_vals[i]));
+                    }
+
+                    filter = format!(" WHERE {}", vals.join(" AND "));
                 }
 
                 format!(
-                    "SELECT {} FROM {} {}",
+                    "SELECT {} FROM {}{}",
                     self.cols.join(", "),
                     self.table_name,
                     filter
@@ -257,160 +290,124 @@ impl MysqlSerializer {
 }
 
 impl Serializer<MysqlStore> for MysqlSerializer {
-    type Ok = ();
     type Err = Error;
 
-    fn serialize_bool(&mut self, v: bool) -> Result<Self::Ok, Self::Err> {
+    fn serialize_bool(&mut self, v: bool) -> Result<(), Self::Err> {
+        self.write_value(match self.kind {
+            QueryKind::Create => "BOOLEAN",
+            _ => match v {
+                false => "FALSE",
+                true => "TRUE",
+            },
+        });
+
+        Ok(())
+    }
+
+    fn serialize_i8(&mut self, v: i8) -> Result<(), Self::Err> {
         match self.kind {
-            QueryKind::Create => self.vals.push(String::from("BOOLEAN")),
-            QueryKind::Delete => {
-                let val = match v {
-                    false => String::from("FALSE"),
-                    true => String::from("TRUE"),
-                };
-
-                self.vals.push(val);
-            }
-            QueryKind::Insert => {
-                let val = match v {
-                    false => String::from("FALSE"),
-                    true => String::from("TRUE"),
-                };
-
-                self.vals.push(val);
-            }
-            _ => (),
+            QueryKind::Create => self.write_value("TINYINT"),
+            _ => self.write_value(v),
         }
 
         Ok(())
     }
 
-    fn serialize_i8(&mut self, v: i8) -> Result<Self::Ok, Self::Err> {
+    fn serialize_i16(&mut self, v: i16) -> Result<(), Self::Err> {
         match self.kind {
-            QueryKind::Create => self.vals.push(String::from("TINYINT")),
-            QueryKind::Delete => self.vals.push(v.to_string()),
-            QueryKind::Insert => self.vals.push(v.to_string()),
-            _ => (),
+            QueryKind::Create => self.write_value("SMALLINT"),
+            _ => self.write_value(v),
         }
 
         Ok(())
     }
 
-    fn serialize_i16(&mut self, v: i16) -> Result<Self::Ok, Self::Err> {
+    fn serialize_i32(&mut self, v: i32) -> Result<(), Self::Err> {
         match self.kind {
-            QueryKind::Create => self.vals.push(String::from("SMALLINT")),
-            QueryKind::Delete => self.vals.push(v.to_string()),
-            QueryKind::Insert => self.vals.push(v.to_string()),
-            _ => (),
+            QueryKind::Create => self.write_value("INT"),
+            _ => self.write_value(v),
         }
 
         Ok(())
     }
 
-    fn serialize_i32(&mut self, v: i32) -> Result<Self::Ok, Self::Err> {
+    fn serialize_i64(&mut self, v: i64) -> Result<(), Self::Err> {
         match self.kind {
-            QueryKind::Create => self.vals.push(String::from("INT")),
-            QueryKind::Delete => self.vals.push(v.to_string()),
-            QueryKind::Insert => self.vals.push(v.to_string()),
-            _ => (),
+            QueryKind::Create => self.write_value("BIGINT"),
+            _ => self.write_value(v),
         }
 
         Ok(())
     }
 
-    fn serialize_i64(&mut self, v: i64) -> Result<Self::Ok, Self::Err> {
+    fn serialize_u8(&mut self, v: u8) -> Result<(), Self::Err> {
         match self.kind {
-            QueryKind::Create => self.vals.push(String::from("BIGINT")),
-            QueryKind::Delete => self.vals.push(v.to_string()),
-            QueryKind::Insert => self.vals.push(v.to_string()),
-            _ => (),
+            QueryKind::Create => self.write_value("TINYINT UNSIGNED"),
+            _ => self.write_value(v),
         }
 
         Ok(())
     }
 
-    fn serialize_u8(&mut self, v: u8) -> Result<Self::Ok, Self::Err> {
+    fn serialize_u16(&mut self, v: u16) -> Result<(), Self::Err> {
         match self.kind {
-            QueryKind::Create => self.vals.push(String::from("TINYINT UNSIGNED")),
-            QueryKind::Delete => self.vals.push(v.to_string()),
-            QueryKind::Insert => self.vals.push(v.to_string()),
-            _ => (),
+            QueryKind::Create => self.write_value("SMALLINT UNSIGNED"),
+            _ => self.write_value(v),
         }
 
         Ok(())
     }
 
-    fn serialize_u16(&mut self, v: u16) -> Result<Self::Ok, Self::Err> {
+    fn serialize_u32(&mut self, v: u32) -> Result<(), Self::Err> {
         match self.kind {
-            QueryKind::Create => self.vals.push(String::from("SMALLINT UNSIGNED")),
-            QueryKind::Delete => self.vals.push(v.to_string()),
-            QueryKind::Insert => self.vals.push(v.to_string()),
-            _ => (),
+            QueryKind::Create => self.write_value("INT UNSIGNED"),
+            _ => self.write_value(v),
         }
 
         Ok(())
     }
 
-    fn serialize_u32(&mut self, v: u32) -> Result<Self::Ok, Self::Err> {
+    fn serialize_u64(&mut self, v: u64) -> Result<(), Self::Err> {
         match self.kind {
-            QueryKind::Create => self.vals.push(String::from("INT UNSIGNED")),
-            QueryKind::Delete => self.vals.push(v.to_string()),
-            QueryKind::Insert => self.vals.push(v.to_string()),
-            _ => (),
+            QueryKind::Create => self.write_value("BIGINT UNSIGNED"),
+            _ => self.write_value(v),
         }
 
         Ok(())
     }
 
-    fn serialize_u64(&mut self, v: u64) -> Result<Self::Ok, Self::Err> {
+    fn serialize_f32(&mut self, v: f32) -> Result<(), Self::Err> {
         match self.kind {
-            QueryKind::Create => self.vals.push(String::from("BIGINT UNSIGNED")),
-            QueryKind::Delete => self.vals.push(v.to_string()),
-            QueryKind::Insert => self.vals.push(v.to_string()),
-            _ => (),
+            QueryKind::Create => self.write_value("FLOAT"),
+            _ => self.write_value(v),
         }
 
         Ok(())
     }
 
-    fn serialize_f32(&mut self, v: f32) -> Result<Self::Ok, Self::Err> {
+    fn serialize_f64(&mut self, v: f64) -> Result<(), Self::Err> {
         match self.kind {
-            QueryKind::Create => self.vals.push(String::from("FLOAT")),
-            QueryKind::Delete => self.vals.push(v.to_string()),
-            QueryKind::Insert => self.vals.push(v.to_string()),
-            _ => (),
+            QueryKind::Create => self.write_value("DOUBLE"),
+            _ => self.write_value(v),
         }
 
         Ok(())
     }
 
-    fn serialize_f64(&mut self, v: f64) -> Result<Self::Ok, Self::Err> {
+    fn serialize_str(&mut self, v: &str) -> Result<(), Self::Err> {
         match self.kind {
-            QueryKind::Create => self.vals.push(String::from("DOUBLE")),
-            QueryKind::Delete => self.vals.push(v.to_string()),
-            QueryKind::Insert => self.vals.push(v.to_string()),
-            _ => (),
+            QueryKind::Create => self.write_value("TEXT"),
+            _ => self.write_value(format!("'{}'", v.replace("'", "\\'"))),
         }
 
         Ok(())
     }
 
-    fn serialize_str(&mut self, v: &str) -> Result<Self::Ok, Self::Err> {
-        match self.kind {
-            QueryKind::Create => self.vals.push(String::from("TEXT")),
-            QueryKind::Delete => self.vals.push(format!("'{}'", v.replace("'", "\\'"))),
-            QueryKind::Insert => self.vals.push(format!("'{}'", v.replace("'", "\\'"))),
-            _ => (),
-        }
-
-        Ok(())
-    }
-
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<Self::Ok, Self::Err>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Err>
     where
         T: ?Sized + Serialize<MysqlStore>,
     {
-        self.cols.push(key.to_owned());
+        self.write_column(key);
         value.serialize(self)?;
 
         Ok(())
@@ -525,7 +522,7 @@ impl Deserializer<MysqlStore> for MysqlDeserializer {
 // ====================================================
 
 impl Serialize<MysqlStore> for bool {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<MysqlStore>,
     {
@@ -534,7 +531,7 @@ impl Serialize<MysqlStore> for bool {
 }
 
 impl Serialize<MysqlStore> for i8 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<MysqlStore>,
     {
@@ -543,7 +540,7 @@ impl Serialize<MysqlStore> for i8 {
 }
 
 impl Serialize<MysqlStore> for i16 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<MysqlStore>,
     {
@@ -552,7 +549,7 @@ impl Serialize<MysqlStore> for i16 {
 }
 
 impl Serialize<MysqlStore> for i32 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<MysqlStore>,
     {
@@ -561,7 +558,7 @@ impl Serialize<MysqlStore> for i32 {
 }
 
 impl Serialize<MysqlStore> for i64 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<MysqlStore>,
     {
@@ -570,7 +567,7 @@ impl Serialize<MysqlStore> for i64 {
 }
 
 impl Serialize<MysqlStore> for u8 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<MysqlStore>,
     {
@@ -579,7 +576,7 @@ impl Serialize<MysqlStore> for u8 {
 }
 
 impl Serialize<MysqlStore> for u16 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<MysqlStore>,
     {
@@ -588,7 +585,7 @@ impl Serialize<MysqlStore> for u16 {
 }
 
 impl Serialize<MysqlStore> for u32 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<MysqlStore>,
     {
@@ -597,7 +594,7 @@ impl Serialize<MysqlStore> for u32 {
 }
 
 impl Serialize<MysqlStore> for u64 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<MysqlStore>,
     {
@@ -606,7 +603,7 @@ impl Serialize<MysqlStore> for u64 {
 }
 
 impl Serialize<MysqlStore> for f32 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<MysqlStore>,
     {
@@ -615,7 +612,7 @@ impl Serialize<MysqlStore> for f32 {
 }
 
 impl Serialize<MysqlStore> for f64 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<MysqlStore>,
     {
@@ -624,7 +621,7 @@ impl Serialize<MysqlStore> for f64 {
 }
 
 impl Serialize<MysqlStore> for str {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<MysqlStore>,
     {
@@ -633,7 +630,7 @@ impl Serialize<MysqlStore> for str {
 }
 
 impl Serialize<MysqlStore> for String {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<MysqlStore>,
     {
