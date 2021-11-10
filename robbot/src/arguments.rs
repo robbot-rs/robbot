@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_arguments() {
-        let arguments = Arguments::from(vec!["Hello", "123"]);
+        let arguments: Arguments = vec!["Hello", "123"].iter().collect();
         assert_eq!(arguments, vec!["Hello", "123"]);
     }
 }
