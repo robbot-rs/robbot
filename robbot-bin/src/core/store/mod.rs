@@ -128,7 +128,7 @@ where
 
     fn resource_name() -> String;
 
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<T>;
 
@@ -139,39 +139,40 @@ where
     fn query() -> Self::DataQuery;
 }
 
-pub trait DataQuery<T, S>: Sized
+pub trait DataQuery<T, U>: Sized
 where
-    T: StoreData<S>,
-    S: Store,
+    T: StoreData<U>,
+    U: Store,
 {
-    fn into_vals(self) -> Vec<(String, String)>;
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
+    where
+        S: Serializer<U>;
 }
 
 pub trait Serializer<S>
 where
     S: Store,
 {
-    type Ok;
     type Err;
 
-    fn serialize_bool(&mut self, v: bool) -> Result<Self::Ok, Self::Err>;
+    fn serialize_bool(&mut self, v: bool) -> Result<(), Self::Err>;
 
-    fn serialize_i8(&mut self, v: i8) -> Result<Self::Ok, Self::Err>;
-    fn serialize_i16(&mut self, v: i16) -> Result<Self::Ok, Self::Err>;
-    fn serialize_i32(&mut self, v: i32) -> Result<Self::Ok, Self::Err>;
-    fn serialize_i64(&mut self, v: i64) -> Result<Self::Ok, Self::Err>;
+    fn serialize_i8(&mut self, v: i8) -> Result<(), Self::Err>;
+    fn serialize_i16(&mut self, v: i16) -> Result<(), Self::Err>;
+    fn serialize_i32(&mut self, v: i32) -> Result<(), Self::Err>;
+    fn serialize_i64(&mut self, v: i64) -> Result<(), Self::Err>;
 
-    fn serialize_u8(&mut self, v: u8) -> Result<Self::Ok, Self::Err>;
-    fn serialize_u16(&mut self, v: u16) -> Result<Self::Ok, Self::Err>;
-    fn serialize_u32(&mut self, v: u32) -> Result<Self::Ok, Self::Err>;
-    fn serialize_u64(&mut self, v: u64) -> Result<Self::Ok, Self::Err>;
+    fn serialize_u8(&mut self, v: u8) -> Result<(), Self::Err>;
+    fn serialize_u16(&mut self, v: u16) -> Result<(), Self::Err>;
+    fn serialize_u32(&mut self, v: u32) -> Result<(), Self::Err>;
+    fn serialize_u64(&mut self, v: u64) -> Result<(), Self::Err>;
 
-    fn serialize_f32(&mut self, v: f32) -> Result<Self::Ok, Self::Err>;
-    fn serialize_f64(&mut self, v: f64) -> Result<Self::Ok, Self::Err>;
+    fn serialize_f32(&mut self, v: f32) -> Result<(), Self::Err>;
+    fn serialize_f64(&mut self, v: f64) -> Result<(), Self::Err>;
 
-    fn serialize_str(&mut self, v: &str) -> Result<Self::Ok, Self::Err>;
+    fn serialize_str(&mut self, v: &str) -> Result<(), Self::Err>;
 
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<Self::Ok, Self::Err>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Err>
     where
         T: ?Sized + Serialize<S>;
 }
@@ -208,7 +209,7 @@ pub trait Serialize<T>
 where
     T: Store,
 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<T>;
 }
@@ -231,7 +232,7 @@ where
     T: Store,
     u64: Serialize<T>,
 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<T>,
     {
@@ -244,7 +245,7 @@ where
     T: Store,
     u64: Serialize<T>,
 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<T>,
     {
@@ -257,7 +258,7 @@ where
     T: Store,
     u64: Serialize<T>,
 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<T>,
     {
@@ -270,7 +271,7 @@ where
     T: Store,
     u64: Serialize<T>,
 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<T>,
     {
@@ -283,7 +284,7 @@ where
     T: Store,
     u64: Serialize<T>,
 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<S::Ok, S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
     where
         S: Serializer<T>,
     {
