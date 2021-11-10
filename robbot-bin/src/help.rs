@@ -15,8 +15,14 @@ pub(crate) fn global(commands: &HashSet<Command>) -> String {
 /// Return Command help
 pub(crate) fn command(command: &Command) -> String {
     let mut string = String::new();
-    writeln!(string, "**Name**: {}", command.name).unwrap();
-    writeln!(string, "**Description**: {}", command.description).unwrap();
+
+    let _ = writeln!(string, "**Name**: {}", command.name);
+    let _ = writeln!(string, "**Description**: {}", command.description);
+
+    if command.executor.is_some() {
+        let _ = writeln!(string, "**Usage**: {}", command.usage);
+        let _ = writeln!(string, "**Example**: {}", command.example);
+    }
 
     if !command.sub_commands.is_empty() {
         writeln!(string, "**Sub Commands**:").unwrap();
