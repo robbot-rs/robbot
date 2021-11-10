@@ -1,9 +1,11 @@
+use log::LevelFilter;
 use serde::Deserialize;
 use std::{fs::File, io::Read, path::Path};
 
 #[derive(Deserialize)]
 pub struct Config {
     pub token: String,
+    pub loglevel: LevelFilter,
     pub database: Database,
 }
 

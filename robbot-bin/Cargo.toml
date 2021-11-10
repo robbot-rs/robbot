@@ -39,4 +39,4 @@ dtoa = "0.4.8"
 robbot-derive = { version = "0.1.0", path = "../robbot-derive" }
 robbot = { version = "0.1.0", path = "../robbot" }
 toml = "0.5.8"
-log = "0.4.14"
+log = { version = "0.4.14", features = ["std", "serde"] }

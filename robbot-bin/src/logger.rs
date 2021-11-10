@@ -1,21 +1,22 @@
+use crate::config::Config;
 use chrono::Local;
 use log::{Level, LevelFilter, Log, Metadata, Record};
 
-pub fn init() {
+pub fn init(config: &Config) {
     log::set_logger(&Logger).unwrap();
 
     #[cfg(debug_assertions)]
     log::set_max_level(LevelFilter::max());
 
     #[cfg(not(debug_assertions))]
-    log::set_max_level(LevelFilter::Info);
+    log::set_max_level(config.loglevel);
 }
 
 pub struct Logger;
 
 impl Log for Logger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.target().starts_with("robbot_bin") && metadata.level() <= Level::Info
+        metadata.target().starts_with("robbot_bin")
     }
 
     fn log(&self, record: &Record) {

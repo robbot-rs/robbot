@@ -34,8 +34,6 @@ use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    logger::init();
-
     let matches = App::new("robbot")
         .version("0.3.1")
         .author("")
@@ -52,10 +50,10 @@ async fn main() {
 
     let config = matches.value_of("config").unwrap_or(DEFAULT_CONFIG);
 
-    log::info!("Using config file {:?}", config);
-
     // Load the config.toml file.
     let config = Config::load(config);
+
+    logger::init(&config);
 
     let gateway_intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_MEMBERS
