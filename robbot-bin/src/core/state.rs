@@ -2,7 +2,7 @@ use super::router::{find_command, parse_args};
 use crate::core::{
     command::Command,
     hook::HookController,
-    store::Store,
+    store::MainStore,
     task::{Task, TaskScheduler},
 };
 use robbot::hook::Hook;
@@ -46,7 +46,7 @@ pub struct State {
     pub(crate) task_scheduler: TaskScheduler,
     pub(crate) hook_controller: HookController,
     // pub(crate) hooks: Arc<RwLock<HashMap<hook::Event, Vec<Hook>>>>,
-    pub store: Store,
+    pub store: Option<MainStore<crate::core::store::mysql::MysqlStore>>,
     pub(crate) gateway_connect_time: Arc<RwLock<Option<std::time::Instant>>>,
 
     /// TODO: Move hook_id handling into hook logic.
@@ -59,7 +59,7 @@ impl State {
             commands: Arc::default(),
             task_scheduler: TaskScheduler::new(),
             hook_controller: HookController::new(),
-            store: Store { pool: None },
+            store: None,
             gateway_connect_time: Arc::default(),
             hook_id: Arc::default(),
         }
