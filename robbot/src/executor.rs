@@ -1,51 +1,19 @@
-use crate::bot::{self, Error};
+use crate::{bot::Result, context::Context};
+use async_trait::async_trait;
 use std::future::Future;
-use tokio::{
-    sync::{mpsc, oneshot},
-    task,
-};
 
-#[derive(Clone, Debug)]
-pub struct Executor<T> {
-    tx: mpsc::Sender<(T, oneshot::Sender<bot::Result>)>,
-}
-
-impl<T> Executor<T> {
-    pub fn new(tx: mpsc::Sender<(T, oneshot::Sender<bot::Result>)>) -> Self {
-        Self { tx }
-    }
-
-    pub async fn send(&self, ctx: T) -> bot::Result {
-        let (tx, rx) = oneshot::channel();
-
-        let _ = self.tx.send((ctx, tx)).await;
-
-        match rx.await {
-            Ok(val) => val,
-            Err(_) => Err(Error::NoResponse),
-        }
-    }
-}
-
-impl<T> Executor<T>
+#[async_trait]
+pub trait Executor<T>
 where
-    T: Send + Sync + 'static,
+    T: Context + Send,
 {
-    pub fn from_fn<F>(f: fn(T) -> F) -> Self
+    /// Create a new `Executor` from a future or static async
+    /// function.
+    fn from_fn<F>(f: fn(T) -> F) -> Self
     where
-        F: Future<Output = bot::Result> + Send + Sync + 'static,
-    {
-        let (tx, mut rx) = mpsc::channel::<(T, oneshot::Sender<bot::Result>)>(32);
+        F: Future<Output = Result> + Send + 'static,
+        T: 'static;
 
-        task::spawn(async move {
-            while let Some((data, tx)) = rx.recv().await {
-                task::spawn(async move {
-                    let res = f(data).await;
-                    let _ = tx.send(res);
-                });
-            }
-        });
-
-        Self { tx }
-    }
+    /// Call the executor with the context.
+    async fn send(&self, ctx: T) -> Result;
 }
