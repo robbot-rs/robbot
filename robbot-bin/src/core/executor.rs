@@ -1,4 +1,5 @@
-use robbot::{Error, Result};
+use async_trait::async_trait;
+use robbot::{Context, Error, Result};
 use std::future::Future;
 use tokio::{
     sync::{mpsc, oneshot},
@@ -6,33 +7,31 @@ use tokio::{
 };
 
 #[derive(Clone)]
-pub struct Executor<T> {
+pub struct Executor<T>
+where
+    T: Context + Send,
+{
     tx: mpsc::Sender<(T, oneshot::Sender<Result>)>,
 }
 
-impl<T> Executor<T> {
+impl<T> Executor<T>
+where
+    T: Context + Send,
+{
     pub fn new(tx: mpsc::Sender<(T, oneshot::Sender<Result>)>) -> Self {
         Self { tx }
     }
-
-    pub async fn send(&self, ctx: T) -> Result {
-        let (tx, rx) = oneshot::channel();
-
-        let _ = self.tx.send((ctx, tx)).await;
-
-        match rx.await {
-            Ok(val) => val,
-            // Sender was dropped. If this happens the
-            // task likely panicked.
-            Err(_) => Err(Error::NoResponse),
-        }
-    }
 }
 
-impl<T: Send + 'static> Executor<T> {
-    pub fn from_fn<F>(f: fn(T) -> F) -> Self
+#[async_trait]
+impl<T> robbot::executor::Executor<T> for Executor<T>
+where
+    T: Context + Send,
+{
+    fn from_fn<F>(f: fn(T) -> F) -> Self
     where
         F: Future<Output = Result> + Send + 'static,
+        T: 'static,
     {
         let (tx, mut rx) = mpsc::channel::<(T, oneshot::Sender<Result>)>(32);
 
@@ -46,5 +45,18 @@ impl<T: Send + 'static> Executor<T> {
         });
 
         Self { tx }
+    }
+
+    async fn send(&self, ctx: T) -> Result {
+        let (tx, rx) = oneshot::channel();
+
+        let _ = self.tx.send((ctx, tx)).await;
+
+        match rx.await {
+            Ok(val) => val,
+            // Sender was dropped. If this happens the
+            // task likely panicked.
+            Err(_) => Err(Error::NoResponse),
+        }
     }
 }
