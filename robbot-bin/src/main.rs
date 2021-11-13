@@ -20,7 +20,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use clap::{App, Arg};
-use robbot::{Context as ContextExt, Error};
+use robbot::{executor::Executor as _, Context as ContextExt, Error};
 use serenity::{
     client::{bridge::gateway::GatewayIntents, Client, Context, EventHandler},
     model::{

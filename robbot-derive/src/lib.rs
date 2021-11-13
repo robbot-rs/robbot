@@ -32,6 +32,8 @@ pub fn command(attr: TokenStream, input: TokenStream) -> TokenStream {
         #exec_fn
 
         pub fn #ident() -> crate::core::command::Command {
+            use ::robbot::executor::Executor;
+
             let exec = crate::core::executor::Executor::from_fn(#command_ident);
 
             let cmd_exec = crate::core::command::CommandExecutor::Message(exec);

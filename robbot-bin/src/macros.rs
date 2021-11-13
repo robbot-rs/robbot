@@ -2,6 +2,8 @@
 macro_rules! command {
     ($name:ident $(, description: $description:expr)? $(, arguments: $arguments:expr)? $(, executor: $executor:expr)?$(,)?) => {
         fn $name() -> $crate::core::command::Command {
+            use ::robbot::executor::Executor;
+
             let mut cmd = $crate::core::command::Command::new(stringify!($name).to_owned());
 
             $(
@@ -22,6 +24,8 @@ macro_rules! command {
 macro_rules! task {
     ($name:ident, $schedule:expr, $executor:expr $(,)?) => {
         fn $name() -> $crate::core::task::Task {
+            use ::robbot::executor::Executor as _;
+
             $crate::core::task::Task {
                 name: stringify!($name).to_owned(),
                 schedule: $schedule,
@@ -36,6 +40,8 @@ macro_rules! task {
 macro_rules! hook {
     ($name:ident, $event:expr, $executor:expr $(,)?) => {
         fn $name(state: ::std::sync::Arc<$crate::core::state::State>) {
+            use ::robbot::executor::Executor as _;
+
             let hook = robbot::hook::Hook {
                 name: stringify!($name).to_owned(),
                 on_event: $event,
