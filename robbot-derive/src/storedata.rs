@@ -11,7 +11,7 @@ pub(crate) fn expand_macro(input: proc_macro::TokenStream) -> proc_macro::TokenS
     match input.data {
         Data::Struct(ref data) => match data.fields {
             Fields::Named(ref fields) => {
-                for (i, f) in fields.named.iter().enumerate() {
+                for f in fields.named.iter() {
                     field_types.push(f.ty.clone());
                     field_idents.push(f.ident.as_ref().unwrap().clone());
                 }
