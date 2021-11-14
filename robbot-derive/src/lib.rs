@@ -8,7 +8,7 @@ use syn::{
     parse::{Parse, ParseStream, Result},
     parse_macro_input,
     punctuated::Punctuated,
-    Data, DeriveInput, Expr, Fields, Ident, ItemFn, Token,
+    Expr, Ident, ItemFn, Token,
 };
 
 #[proc_macro_attribute]
