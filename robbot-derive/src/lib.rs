@@ -178,6 +178,14 @@ pub fn storedata(input: TokenStream) -> TokenStream {
         }
     });
 
+    let dataquery_serialize_self = fields_idents.iter().map(|ident| {
+        let name = ident.as_ref().unwrap().to_string();
+
+        quote! {
+            serializer.serialize_field(#name, &self.#ident)?;
+        }
+    });
+
     let ident = input.ident.clone();
 
     let dataquery_ident = Ident::new(&(input.ident.to_string() + "Query"), Span::call_site());
@@ -185,6 +193,7 @@ pub fn storedata(input: TokenStream) -> TokenStream {
     let resource_name = input.ident.to_string().to_lowercase();
 
     let recurse2 = recurse.clone();
+    let recurse3 = recurse.clone();
 
     let expanded = quote! {
         impl<T> crate::core::store::StoreData<T> for #ident
@@ -236,6 +245,21 @@ pub fn storedata(input: TokenStream) -> TokenStream {
                 S: crate::core::store::Serializer<T>,
             {
                 #(#dataquery_serialize)*
+                ::std::result::Result::Ok(())
+            }
+        }
+
+        impl<T> crate::core::store::DataQuery<#ident, T> for #ident
+        where
+            T: crate::core::store::Store,
+            #(#recurse3)*
+        {
+            fn serialize<S>(&self, serializer: &mut S) -> ::std::result::Result<(), S::Err>
+            where
+                S: crate::core::store::Serializer<T>,
+            {
+                #(#dataquery_serialize_self)*
+
                 ::std::result::Result::Ok(())
             }
         }
