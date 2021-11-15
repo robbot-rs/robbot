@@ -26,7 +26,11 @@ pub fn command(attr: TokenStream, input: TokenStream) -> TokenStream {
     let command_ident = exec_fn.sig.ident.clone();
 
     let recurse = args.args.iter().map(|(ident, expr)| match expr {
-        Some(expr) => quote! { cmd.#ident(#expr); },
+        Some(expr) => {
+            let ident = Ident::new(&format!("set_{}", ident), Span::call_site());
+
+            quote! { cmd.#ident(#expr); }
+        }
         _ => unimplemented!(),
     });
 
@@ -38,10 +42,8 @@ pub fn command(attr: TokenStream, input: TokenStream) -> TokenStream {
 
             let exec = crate::core::executor::Executor::from_fn(#command_ident);
 
-            let cmd_exec = crate::core::command::CommandExecutor::Message(exec);
-
             let mut cmd = crate::core::command::Command::new(#ident_str);
-            cmd.executor = Some(cmd_exec);
+            cmd.executor = Some(exec);
 
             #(#recurse)*
 
