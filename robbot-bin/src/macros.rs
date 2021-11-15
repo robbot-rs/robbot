@@ -2,8 +2,6 @@
 macro_rules! command {
     ($name:ident $(, description: $description:expr)? $(, arguments: $arguments:expr)? $(, executor: $executor:expr)?$(,)?) => {
         fn $name() -> $crate::core::command::Command {
-            use ::robbot::executor::Executor;
-
             let mut cmd = $crate::core::command::Command::new(stringify!($name).to_owned());
 
             $(
@@ -11,6 +9,8 @@ macro_rules! command {
             )?
 
             $(
+                use ::robbot::executor::Executor;
+
                 let executor = $crate::core::executor::Executor::from_fn($executor);
                 cmd.executor = Some(executor);
             )?
