@@ -1,5 +1,13 @@
 # Replace with your discord bot token.
 token = "<YOUR_TOKEN>"
+# Possible options: error, warn, info, debug, trace
+# Default value: info
+loglevel = "info"
+# Superusers always have all permissions regardless of server. Some
+# commands are only avaliable to superusers.
+# Note: This feature is only supported if Robbot is compiled with the
+# "permissions" feature.
+superusers = []
 
 # Database
 [database]
