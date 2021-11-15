@@ -57,3 +57,52 @@ impl Borrow<str> for Module {
         &self.name
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct LoadedModule {
+    pub name: String,
+
+    pub handle: ModuleHandle,
+}
+
+impl Hash for LoadedModule {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.name.hash(state);
+    }
+}
+
+impl PartialEq for LoadedModule {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+impl PartialEq<str> for LoadedModule {
+    fn eq(&self, other: &str) -> bool {
+        self.name == *other
+    }
+}
+
+impl Borrow<str> for LoadedModule {
+    fn borrow(&self) -> &str {
+        &self.name
+    }
+}
+
+impl Borrow<ModuleHandle> for LoadedModule {
+    fn borrow(&self) -> &ModuleHandle {
+        &self.handle
+    }
+}
+
+impl From<Module> for LoadedModule {
+    fn from(src: Module) -> Self {
+        Self {
+            name: src.name,
+            handle: ModuleHandle::new(),
+        }
+    }
+}

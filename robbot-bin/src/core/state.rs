@@ -2,7 +2,7 @@ use super::router::{find_command, parse_args};
 use crate::core::{
     command::{Command, LoadedCommand},
     hook::HookController,
-    module::{Module, ModuleHandle},
+    module::{LoadedModule, Module, ModuleHandle},
     store::MainStore,
     task::{Task, TaskScheduler},
 };
@@ -44,7 +44,7 @@ impl error::Error for LoadError {}
 #[derive(Default)]
 pub struct State {
     pub(crate) config: Arc<RwLock<crate::config::Config>>,
-    pub(crate) modules: Arc<RwLock<Vec<Module>>>,
+    pub(crate) modules: Arc<RwLock<Vec<LoadedModule>>>,
     pub(crate) commands: Arc<RwLock<HashSet<LoadedCommand>>>,
     pub(crate) task_scheduler: TaskScheduler,
     pub(crate) hook_controller: HookController,
@@ -74,7 +74,7 @@ impl State {
 
         let handle = ModuleHandle::new();
 
-        if modules.contains(&module) {
+        if modules.iter().any(|m| m.name == module.name) {
             return Err(LoadError::DuplicateName);
         }
 
@@ -96,9 +96,33 @@ impl State {
             }
         }
 
-        modules.push(module);
+        modules.push(module.into());
 
         Ok(handle)
+    }
+
+    /// Unload the module with the given handle. Removes all commands
+    /// that are loaded under the module.
+    pub fn unload_module(&self, handle: ModuleHandle) -> Result<(), LoadError> {
+        let mut modules = self.modules.write().unwrap();
+        let mut commands = self.commands.write().unwrap();
+
+        // Remove all top-level commands with the same handle
+        // as the module.
+        commands.retain(|cmd| {
+            if let Some(cmd_handle) = cmd.module_handle {
+                if cmd_handle == handle {
+                    return false;
+                }
+            }
+
+            true
+        });
+
+        // Remove the loaded module with the same handle.
+        modules.retain(|m| m.handle != handle);
+
+        Ok(())
     }
 
     /// Register a text command.
