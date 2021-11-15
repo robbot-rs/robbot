@@ -27,7 +27,7 @@ use serenity::{
         user::User,
     },
 };
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 #[tokio::main]
 async fn main() {
@@ -71,6 +71,8 @@ async fn main() {
             .await
             .unwrap(),
     );
+
+    state.config = Arc::new(RwLock::new(config.clone()));
 
     let state = Arc::new(state);
 
@@ -179,8 +181,9 @@ impl EventHandler for Handler {
 
         #[cfg(feature = "permissions")]
         {
-            // TODO: impl permission system
-            let admins = vec![305107935606996992];
+            let config = self.state.config.read().unwrap();
+            let admins = &config.superusers;
+
             if !admins.contains(&message.author.id.0) {
                 return;
             }

@@ -43,13 +43,13 @@ impl error::Error for LoadError {}
 
 #[derive(Default)]
 pub struct State {
+    pub(crate) config: Arc<RwLock<crate::config::Config>>,
     pub(crate) modules: Arc<RwLock<Vec<Module>>>,
     pub(crate) commands: Arc<RwLock<HashSet<LoadedCommand>>>,
     pub(crate) task_scheduler: TaskScheduler,
     pub(crate) hook_controller: HookController,
     pub store: Option<MainStore<crate::core::store::mysql::MysqlStore>>,
     pub(crate) gateway_connect_time: Arc<RwLock<Option<std::time::Instant>>>,
-
     /// TODO: Move hook_id handling into hook logic.
     pub(crate) hook_id: Arc<std::sync::atomic::AtomicUsize>,
 }
@@ -57,6 +57,7 @@ pub struct State {
 impl State {
     pub fn new() -> Self {
         Self {
+            config: Arc::default(),
             modules: Arc::default(),
             commands: Arc::default(),
             task_scheduler: TaskScheduler::new(),
