@@ -13,14 +13,11 @@ const DEFAULT_CONFIG: &str = "./config.toml";
 
 use crate::{
     config::Config,
-    core::{
-        command::CommandExecutor, hook::Event, router::parse_args, router::route_command,
-        state::State,
-    },
+    core::{hook::Event, router::parse_args, router::route_command, state::State},
 };
 use async_trait::async_trait;
 use clap::{App, Arg};
-use robbot::{executor::Executor as _, Context as ContextExt, Error};
+use robbot::{executor::Executor as _, Command as _, Context as ContextExt, Error};
 use serenity::{
     client::{bridge::gateway::GatewayIntents, Client, Context, EventHandler},
     model::{
@@ -217,21 +214,9 @@ impl EventHandler for Handler {
             return;
         }
 
-        match &cmd.executor {
+        match cmd.executor() {
             Some(executor) => {
-                let res = match executor {
-                    CommandExecutor::Message(executor) => executor.send(ctx.clone()).await,
-                    CommandExecutor::GuildMessage(executor) => {
-                        let ctx = bot::Context {
-                            raw_ctx: ctx.raw_ctx.clone(),
-                            state: ctx.state.clone(),
-                            args: ctx.args.clone(),
-                            event: robbot::model::GuildMessage::from(ctx.event.clone()),
-                        };
-
-                        executor.send(ctx).await
-                    }
-                };
+                let res = executor.send(ctx.clone()).await;
 
                 if let Err(err) = res {
                     match err {
