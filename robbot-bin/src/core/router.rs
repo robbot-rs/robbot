@@ -1,4 +1,4 @@
-use crate::core::command::Command;
+use robbot::command::Command;
 use std::collections::HashSet;
 
 /// Parse an input string into a list of arguments.
@@ -38,10 +38,13 @@ pub(crate) fn parse_args(input: &str) -> Vec<&str> {
         .collect()
 }
 
-pub(crate) fn find_command<'life0>(
-    commands: &'life0 HashSet<Command>,
+pub(crate) fn find_command<'life0, T>(
+    commands: &'life0 HashSet<T>,
     args: &mut Vec<&str>,
-) -> Option<&'life0 Command> {
+) -> Option<&'life0 T>
+where
+    T: Command,
+{
     if args.is_empty() {
         return None;
     }
@@ -52,7 +55,7 @@ pub(crate) fn find_command<'life0>(
     };
 
     while let Some(arg) = args.get(0) {
-        match command.sub_commands.get(*arg) {
+        match command.sub_commands().get(*arg) {
             Some(cmd) => {
                 args.remove(0);
                 command = cmd;
@@ -64,7 +67,10 @@ pub(crate) fn find_command<'life0>(
     Some(command)
 }
 
-pub(crate) fn route_command(commands: &HashSet<Command>, args: &mut Vec<&str>) -> Option<Command> {
+pub(crate) fn route_command<T>(commands: &HashSet<T>, args: &mut Vec<&str>) -> Option<T>
+where
+    T: Command + Clone,
+{
     if args.is_empty() {
         return None;
     }
@@ -75,7 +81,7 @@ pub(crate) fn route_command(commands: &HashSet<Command>, args: &mut Vec<&str>) -
     };
 
     while let Some(arg) = args.get(0) {
-        match command.sub_commands.get(*arg) {
+        match command.sub_commands().get(*arg) {
             Some(cmd) => {
                 args.remove(0);
                 command = cmd;
