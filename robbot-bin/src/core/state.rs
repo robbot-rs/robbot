@@ -1,7 +1,8 @@
 use super::router::{find_command, parse_args};
 use crate::core::{
-    command::Command,
+    command::{Command, LoadedCommand},
     hook::HookController,
+    module::{Module, ModuleHandle},
     store::MainStore,
     task::{Task, TaskScheduler},
 };
@@ -42,10 +43,10 @@ impl error::Error for LoadError {}
 
 #[derive(Default)]
 pub struct State {
-    pub(crate) commands: Arc<RwLock<HashSet<Command>>>,
+    pub(crate) modules: Arc<RwLock<Vec<Module>>>,
+    pub(crate) commands: Arc<RwLock<HashSet<LoadedCommand>>>,
     pub(crate) task_scheduler: TaskScheduler,
     pub(crate) hook_controller: HookController,
-    // pub(crate) hooks: Arc<RwLock<HashMap<hook::Event, Vec<Hook>>>>,
     pub store: Option<MainStore<crate::core::store::mysql::MysqlStore>>,
     pub(crate) gateway_connect_time: Arc<RwLock<Option<std::time::Instant>>>,
 
@@ -56,6 +57,7 @@ pub struct State {
 impl State {
     pub fn new() -> Self {
         Self {
+            modules: Arc::default(),
             commands: Arc::default(),
             task_scheduler: TaskScheduler::new(),
             hook_controller: HookController::new(),
@@ -65,9 +67,44 @@ impl State {
         }
     }
 
+    pub fn load_module(&self, module: Module) -> Result<ModuleHandle, LoadError> {
+        let mut modules = self.modules.write().unwrap();
+        let mut commands = self.commands.write().unwrap();
+
+        let handle = ModuleHandle::new();
+
+        if modules.contains(&module) {
+            return Err(LoadError::DuplicateName);
+        }
+
+        if let Some(cmds) = &module.commands {
+            for cmd in cmds {
+                if commands.contains(cmd.name.as_str()) {
+                    return Err(LoadError::DuplicateName);
+                }
+            }
+
+            for cmd in cmds {
+                commands.insert(LoadedCommand::new(cmd.clone(), Some(handle)));
+            }
+        }
+
+        if let Some(tasks) = &module.tasks {
+            for task in tasks {
+                self.add_task(task.clone());
+            }
+        }
+
+        modules.push(module);
+
+        Ok(handle)
+    }
+
     /// Register a text command.
     pub fn add_command(&self, command: Command, path: Option<&str>) -> Result<(), LoadError> {
         let commands = self.commands.write().unwrap();
+
+        let command = LoadedCommand::new(command, None);
 
         let root_set = match path {
             Some(path) => {
@@ -91,7 +128,7 @@ impl State {
         // doesn't change it's hash.
         unsafe {
             #[allow(mutable_transmutes)]
-            let root_set: &mut HashSet<Command> = std::mem::transmute(root_set);
+            let root_set: &mut HashSet<LoadedCommand> = std::mem::transmute(root_set);
             root_set.insert(command);
         }
 
