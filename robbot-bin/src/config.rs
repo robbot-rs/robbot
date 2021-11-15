@@ -1,12 +1,24 @@
 use log::LevelFilter;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{fs::File, io::Read, path::Path};
 
-#[derive(Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Config {
     pub token: String,
     pub loglevel: LevelFilter,
     pub database: Database,
+    pub superusers: Vec<u64>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            token: String::new(),
+            loglevel: LevelFilter::Info,
+            database: Database::default(),
+            superusers: Vec::new(),
+        }
+    }
 }
 
 impl Config {
@@ -24,7 +36,7 @@ impl Config {
 
 /// Database configuration section. Note that not all
 /// fields are required for all driver types.
-#[derive(Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Database {
     pub driver: String,
     pub host: String,
