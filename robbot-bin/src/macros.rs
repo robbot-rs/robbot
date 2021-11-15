@@ -12,7 +12,7 @@ macro_rules! command {
 
             $(
                 let executor = $crate::core::executor::Executor::from_fn($executor);
-                cmd.executor = ::std::option::Option::Some($crate::core::command::CommandExecutor::Message(executor));
+                cmd.executor = Some(executor);
             )?
 
             cmd
