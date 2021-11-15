@@ -51,7 +51,7 @@ impl Arguments {
     /// ```
     /// use robbot::Arguments;
     /// # fn main() -> Result<(), robbot::Error> {
-    ///     let mut args = Arguments::from(vec!["hello", "123"]);
+    ///     let mut args: Arguments = vec!["hello", "123"].iter().collect();
     ///
     ///     let arg1: String = args.pop_first()?;
     ///     let arg2: i64 = args.pop_first()?;
@@ -84,7 +84,7 @@ impl Arguments {
     /// ```
     /// use robbot::Arguments;
     /// # fn main() -> Result<(), robbot::Error> {
-    ///     let mut args = Arguments::from(vec!["Hello", "World"]);
+    ///     let mut args: Arguments = vec!["Hello", "World"].iter().collect();
     ///
     ///     let arg: String = args.join_rest()?;
     ///     assert_eq!(arg, "Hello World");
