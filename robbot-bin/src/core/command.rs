@@ -1,6 +1,5 @@
 use super::executor::Executor;
-use crate::bot::Context;
-use robbot::model::{GuildMessage, Message};
+use crate::{bot::MessageContext, core::module::ModuleHandle};
 use std::{
     borrow::Borrow,
     collections::HashSet,
@@ -10,15 +9,24 @@ use std::{
 #[derive(Clone)]
 pub struct Command {
     pub name: String,
+    /// Description of the command. Shown to the user in
+    /// the help command.
     pub description: String,
+    /// Usage of the command. Shown to the user in the help
+    /// command. Use `<>` for required arguments and `[]` for
+    /// optional commands. Only write the arguments to the usage
+    /// field, **do not** write the full command path.
+    /// Example: `<User> [Message]`
     pub usage: String,
+    /// Example usage shown to the user in the help command.
+    /// The example should match defined usage.
     pub example: String,
     /// Whether the command should only be usable inside
     /// guilds. Note that if the command is guild-only all
     /// subcommands will infer the guild-only property.
     pub guild_only: bool,
     pub sub_commands: HashSet<Command>,
-    pub executor: Option<CommandExecutor>,
+    pub executor: Option<Executor<MessageContext>>,
 }
 
 impl Command {
@@ -38,21 +46,21 @@ impl Command {
     }
 
     /// Set the `description` field of the command.
-    pub fn description<T>(&mut self, description: T)
+    pub fn set_description<T>(&mut self, description: T)
     where
         T: ToString,
     {
         self.description = description.to_string();
     }
 
-    pub fn usage<T>(&mut self, usage: T)
+    pub fn set_usage<T>(&mut self, usage: T)
     where
         T: ToString,
     {
         self.usage = usage.to_string();
     }
 
-    pub fn example<T>(&mut self, example: T)
+    pub fn set_example<T>(&mut self, example: T)
     where
         T: ToString,
     {
@@ -60,8 +68,40 @@ impl Command {
     }
 
     /// Set the `guild_only` field of the command.
-    pub fn guild_only(&mut self, guild_only: bool) {
+    pub fn set_guild_only(&mut self, guild_only: bool) {
         self.guild_only = guild_only;
+    }
+}
+
+impl robbot::Command for Command {
+    type Executor = Executor<MessageContext>;
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn description(&self) -> &str {
+        &self.description
+    }
+
+    fn usage(&self) -> &str {
+        &self.usage
+    }
+
+    fn example(&self) -> &str {
+        &self.example
+    }
+
+    fn guild_only(&self) -> bool {
+        self.guild_only
+    }
+
+    fn sub_commands(&self) -> &HashSet<Self> {
+        &self.sub_commands
+    }
+
+    fn executor(&self) -> Option<&Executor<MessageContext>> {
+        self.executor.as_ref()
     }
 }
 
@@ -89,7 +129,98 @@ impl Borrow<str> for Command {
 }
 
 #[derive(Clone)]
-pub enum CommandExecutor {
-    Message(Executor<Context<Message>>),
-    GuildMessage(Executor<Context<GuildMessage>>),
+pub(crate) struct LoadedCommand {
+    pub name: String,
+    pub description: String,
+    pub usage: String,
+    pub example: String,
+    pub guild_only: bool,
+    pub sub_commands: HashSet<Self>,
+    pub executor: Option<Executor<MessageContext>>,
+
+    pub module_handle: Option<ModuleHandle>,
 }
+
+impl LoadedCommand {
+    pub fn new(command: Command, handle: Option<ModuleHandle>) -> Self {
+        Self {
+            name: command.name,
+            description: command.description,
+            usage: command.usage,
+            example: command.example,
+            guild_only: command.guild_only,
+            sub_commands: {
+                let mut hashset = HashSet::with_capacity(command.sub_commands.capacity());
+
+                for cmd in command.sub_commands {
+                    hashset.insert(LoadedCommand::new(cmd, handle));
+                }
+
+                hashset
+            },
+            executor: command.executor,
+            module_handle: handle,
+        }
+    }
+}
+
+impl robbot::Command for LoadedCommand {
+    type Executor = Executor<MessageContext>;
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn description(&self) -> &str {
+        &self.description
+    }
+
+    fn usage(&self) -> &str {
+        &self.usage
+    }
+
+    fn example(&self) -> &str {
+        &self.example
+    }
+
+    fn guild_only(&self) -> bool {
+        self.guild_only
+    }
+
+    fn sub_commands(&self) -> &HashSet<Self> {
+        &self.sub_commands
+    }
+
+    fn executor(&self) -> Option<&Self::Executor> {
+        self.executor.as_ref()
+    }
+}
+
+impl Hash for LoadedCommand {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.name.hash(state);
+    }
+}
+
+impl PartialEq for LoadedCommand {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+impl Eq for LoadedCommand {}
+
+impl Borrow<str> for LoadedCommand {
+    fn borrow(&self) -> &str {
+        &self.name
+    }
+}
+
+// #[derive(Clone)]
+// pub enum CommandExecutor {
+//     Message(Executor<Context<Message>>),
+//     GuildMessage(Executor<Context<GuildMessage>>),
+// }
