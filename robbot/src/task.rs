@@ -1,31 +1,24 @@
-use crate::executor::Executor;
 use chrono::{DateTime, Duration, TimeZone, Timelike, Utc};
 
-#[derive(Clone)]
-pub struct Task<T> {
-    pub name: String,
-    pub schedule: TaskSchedule,
-    pub executor: Executor<T>,
-    /// Immedietly schedule a task execution when the
-    /// task is first loaded. After that the next task
-    /// will be queued using [`TaskSchedule`].
-    pub on_load: bool,
-}
+pub trait Task: Sized {
+    type Executor;
 
-impl<T> Task<T> {
-    /// Calculate the next execution time for the task based on the
-    /// current time `time`.
-    pub fn next_execution<Tz>(&self, time: DateTime<Tz>) -> DateTime<Tz>
+    fn name(&self) -> &str;
+    fn schedule(&self) -> &TaskSchedule;
+    fn executor(&self) -> &Self::Executor;
+    fn on_load(&self) -> bool;
+
+    fn next_execution<Tz>(&self, time: DateTime<Tz>) -> DateTime<Tz>
     where
         Tz: TimeZone,
     {
-        match self.schedule {
-            TaskSchedule::Interval(duration) => time + duration,
+        match self.schedule() {
+            TaskSchedule::Interval(duration) => time + *duration,
             TaskSchedule::RepeatTime(mut timestamp, interval) => {
                 let offset = time.offset().clone();
 
                 while time >= timestamp {
-                    timestamp = timestamp + interval;
+                    timestamp = timestamp + *interval;
                 }
 
                 DateTime::from_utc(timestamp.naive_utc(), offset)
@@ -111,9 +104,31 @@ impl TaskSchedule {
 #[cfg(test)]
 mod tests {
     use super::{Task, TaskSchedule};
-    use crate::executor::Executor;
     use chrono::{Duration, Timelike, Utc};
-    use tokio::sync::mpsc;
+
+    struct TestTask {
+        schedule: TaskSchedule,
+    }
+
+    impl Task for TestTask {
+        type Executor = ();
+
+        fn name(&self) -> &str {
+            ""
+        }
+
+        fn schedule(&self) -> &TaskSchedule {
+            &self.schedule
+        }
+
+        fn executor(&self) -> &Self::Executor {
+            &()
+        }
+
+        fn on_load(&self) -> bool {
+            false
+        }
+    }
 
     #[test]
     fn test_task_schedule_interval() {
@@ -168,14 +183,10 @@ mod tests {
 
     #[test]
     fn test_task_next_execution() {
-        let (tx, _rx) = mpsc::channel(1);
         let now = Utc::now();
 
-        let mut task = Task {
-            name: String::from("test"),
+        let mut task = TestTask {
             schedule: TaskSchedule::seconds(1),
-            executor: Executor::<()>::new(tx),
-            on_load: false,
         };
 
         task.schedule = TaskSchedule::hours(1);
