@@ -218,9 +218,3 @@ impl Borrow<str> for LoadedCommand {
         &self.name
     }
 }
-
-// #[derive(Clone)]
-// pub enum CommandExecutor {
-//     Message(Executor<Context<Message>>),
-//     GuildMessage(Executor<Context<GuildMessage>>),
-// }
