@@ -1,6 +1,8 @@
-use super::{DataQuery, Deserialize, Deserializer, Serialize, Serializer, Store, StoreData};
 use async_trait::async_trait;
 use futures::TryStreamExt;
+use robbot::store::{
+    DataQuery, Deserialize, Deserializer, Serialize, Serializer, Store, StoreData,
+};
 use sqlx::{
     mysql::{MySqlPool, MySqlRow},
     Row,
@@ -42,15 +44,16 @@ pub struct MysqlStore {
 
 #[async_trait]
 impl Store for MysqlStore {
+    type Error = Error;
     type Serializer = MysqlSerializer;
 
-    async fn connect(uri: &str) -> sqlx::Result<Self> {
+    async fn connect(uri: &str) -> Result<Self, Error> {
         let pool = MySqlPool::connect(uri).await?;
 
         Ok(Self { pool })
     }
 
-    async fn create<T>(&self) -> sqlx::Result<()>
+    async fn create<T>(&self) -> Result<(), Error>
     where
         T: StoreData<Self> + Default + Send,
     {
@@ -67,10 +70,10 @@ impl Store for MysqlStore {
         Ok(())
     }
 
-    async fn delete<T, Q>(&self, query: Q) -> sqlx::Result<()>
+    async fn delete<T, Q>(&self, query: Q) -> Result<(), Error>
     where
         T: StoreData<Self> + Default + Send,
-        Q: DataQuery<T, Self> + Send + Sync,
+        Q: DataQuery<T, Self> + Send,
     {
         let table_name = T::resource_name();
 
@@ -86,7 +89,7 @@ impl Store for MysqlStore {
         Ok(())
     }
 
-    async fn get<T, Q>(&self, query: Option<Q>) -> sqlx::Result<Vec<T>>
+    async fn get<T, Q>(&self, query: Q) -> Result<Vec<T>, Error>
     where
         T: StoreData<Self> + Default + Send,
         Q: DataQuery<T, Self> + Send,
@@ -98,10 +101,8 @@ impl Store for MysqlStore {
 
         data.serialize(&mut serializer).unwrap();
 
-        if let Some(query) = query {
-            serializer.target_where = true;
-            query.serialize(&mut serializer).unwrap();
-        }
+        serializer.target_where = true;
+        query.serialize(&mut serializer).unwrap();
 
         let sql = serializer.into_sql();
         let mut rows = sqlx::query(&sql).fetch(&self.pool);
@@ -118,10 +119,32 @@ impl Store for MysqlStore {
         Ok(entries)
     }
 
-    async fn get_one<T, Q>(&self, query: Q) -> sqlx::Result<T>
+    async fn get_all<T>(&self) -> Result<Vec<T>, Error>
     where
         T: StoreData<Self> + Default + Send,
-        Q: DataQuery<T, Self> + Send + Sync,
+    {
+        let table_name = T::resource_name();
+
+        let sql = MysqlSerializer::new(table_name, QueryKind::Select).into_sql();
+
+        let mut rows = sqlx::query(&sql).fetch(&self.pool);
+
+        let mut entries = Vec::new();
+
+        while let Some(row) = rows.try_next().await? {
+            let mut deserializer = MysqlDeserializer::new(row);
+            let data = T::deserialize(&mut deserializer).unwrap();
+
+            entries.push(data);
+        }
+
+        Ok(entries)
+    }
+
+    async fn get_one<T, Q>(&self, query: Q) -> Result<T, Error>
+    where
+        T: StoreData<Self> + Default + Send,
+        Q: DataQuery<T, Self> + Send,
     {
         let data = T::default();
         let table_name = T::resource_name();
@@ -142,7 +165,7 @@ impl Store for MysqlStore {
         Ok(data)
     }
 
-    async fn insert<T>(&self, data: T) -> sqlx::Result<()>
+    async fn insert<T>(&self, data: T) -> Result<(), Error>
     where
         T: StoreData<Self> + Send,
     {
@@ -290,9 +313,9 @@ impl MysqlSerializer {
 }
 
 impl Serializer<MysqlStore> for MysqlSerializer {
-    type Err = Error;
+    type Error = Error;
 
-    fn serialize_bool(&mut self, v: bool) -> Result<(), Self::Err> {
+    fn serialize_bool(&mut self, v: bool) -> Result<(), Self::Error> {
         self.write_value(match self.kind {
             QueryKind::Create => "BOOLEAN",
             _ => match v {
@@ -304,7 +327,7 @@ impl Serializer<MysqlStore> for MysqlSerializer {
         Ok(())
     }
 
-    fn serialize_i8(&mut self, v: i8) -> Result<(), Self::Err> {
+    fn serialize_i8(&mut self, v: i8) -> Result<(), Self::Error> {
         match self.kind {
             QueryKind::Create => self.write_value("TINYINT"),
             _ => self.write_value(v),
@@ -313,7 +336,7 @@ impl Serializer<MysqlStore> for MysqlSerializer {
         Ok(())
     }
 
-    fn serialize_i16(&mut self, v: i16) -> Result<(), Self::Err> {
+    fn serialize_i16(&mut self, v: i16) -> Result<(), Self::Error> {
         match self.kind {
             QueryKind::Create => self.write_value("SMALLINT"),
             _ => self.write_value(v),
@@ -322,7 +345,7 @@ impl Serializer<MysqlStore> for MysqlSerializer {
         Ok(())
     }
 
-    fn serialize_i32(&mut self, v: i32) -> Result<(), Self::Err> {
+    fn serialize_i32(&mut self, v: i32) -> Result<(), Self::Error> {
         match self.kind {
             QueryKind::Create => self.write_value("INT"),
             _ => self.write_value(v),
@@ -331,7 +354,7 @@ impl Serializer<MysqlStore> for MysqlSerializer {
         Ok(())
     }
 
-    fn serialize_i64(&mut self, v: i64) -> Result<(), Self::Err> {
+    fn serialize_i64(&mut self, v: i64) -> Result<(), Self::Error> {
         match self.kind {
             QueryKind::Create => self.write_value("BIGINT"),
             _ => self.write_value(v),
@@ -340,7 +363,7 @@ impl Serializer<MysqlStore> for MysqlSerializer {
         Ok(())
     }
 
-    fn serialize_u8(&mut self, v: u8) -> Result<(), Self::Err> {
+    fn serialize_u8(&mut self, v: u8) -> Result<(), Self::Error> {
         match self.kind {
             QueryKind::Create => self.write_value("TINYINT UNSIGNED"),
             _ => self.write_value(v),
@@ -349,7 +372,7 @@ impl Serializer<MysqlStore> for MysqlSerializer {
         Ok(())
     }
 
-    fn serialize_u16(&mut self, v: u16) -> Result<(), Self::Err> {
+    fn serialize_u16(&mut self, v: u16) -> Result<(), Self::Error> {
         match self.kind {
             QueryKind::Create => self.write_value("SMALLINT UNSIGNED"),
             _ => self.write_value(v),
@@ -358,7 +381,7 @@ impl Serializer<MysqlStore> for MysqlSerializer {
         Ok(())
     }
 
-    fn serialize_u32(&mut self, v: u32) -> Result<(), Self::Err> {
+    fn serialize_u32(&mut self, v: u32) -> Result<(), Self::Error> {
         match self.kind {
             QueryKind::Create => self.write_value("INT UNSIGNED"),
             _ => self.write_value(v),
@@ -367,7 +390,7 @@ impl Serializer<MysqlStore> for MysqlSerializer {
         Ok(())
     }
 
-    fn serialize_u64(&mut self, v: u64) -> Result<(), Self::Err> {
+    fn serialize_u64(&mut self, v: u64) -> Result<(), Self::Error> {
         match self.kind {
             QueryKind::Create => self.write_value("BIGINT UNSIGNED"),
             _ => self.write_value(v),
@@ -376,7 +399,7 @@ impl Serializer<MysqlStore> for MysqlSerializer {
         Ok(())
     }
 
-    fn serialize_f32(&mut self, v: f32) -> Result<(), Self::Err> {
+    fn serialize_f32(&mut self, v: f32) -> Result<(), Self::Error> {
         match self.kind {
             QueryKind::Create => self.write_value("FLOAT"),
             _ => self.write_value(v),
@@ -385,7 +408,7 @@ impl Serializer<MysqlStore> for MysqlSerializer {
         Ok(())
     }
 
-    fn serialize_f64(&mut self, v: f64) -> Result<(), Self::Err> {
+    fn serialize_f64(&mut self, v: f64) -> Result<(), Self::Error> {
         match self.kind {
             QueryKind::Create => self.write_value("DOUBLE"),
             _ => self.write_value(v),
@@ -394,7 +417,7 @@ impl Serializer<MysqlStore> for MysqlSerializer {
         Ok(())
     }
 
-    fn serialize_str(&mut self, v: &str) -> Result<(), Self::Err> {
+    fn serialize_str(&mut self, v: &str) -> Result<(), Self::Error> {
         match self.kind {
             QueryKind::Create => self.write_value("TEXT"),
             _ => self.write_value(format!("'{}'", v.replace("'", "\\'"))),
@@ -403,7 +426,7 @@ impl Serializer<MysqlStore> for MysqlSerializer {
         Ok(())
     }
 
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Err>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
     where
         T: ?Sized + Serialize<MysqlStore>,
     {
@@ -434,81 +457,81 @@ impl MysqlDeserializer {
 }
 
 impl Deserializer<MysqlStore> for MysqlDeserializer {
-    type Err = Error;
+    type Error = Error;
 
-    fn deserialize_bool(&mut self) -> Result<bool, Self::Err> {
+    fn deserialize_bool(&mut self) -> Result<bool, Self::Error> {
         let v = self.row.try_get(self.column())?;
 
         Ok(v)
     }
 
-    fn deserialize_i8(&mut self) -> Result<i8, Self::Err> {
+    fn deserialize_i8(&mut self) -> Result<i8, Self::Error> {
         let v = self.row.try_get(self.column())?;
 
         Ok(v)
     }
 
-    fn deserialize_i16(&mut self) -> Result<i16, Self::Err> {
+    fn deserialize_i16(&mut self) -> Result<i16, Self::Error> {
         let v = self.row.try_get(self.column())?;
 
         Ok(v)
     }
 
-    fn deserialize_i32(&mut self) -> Result<i32, Self::Err> {
+    fn deserialize_i32(&mut self) -> Result<i32, Self::Error> {
         let v = self.row.try_get(self.column())?;
 
         Ok(v)
     }
 
-    fn deserialize_i64(&mut self) -> Result<i64, Self::Err> {
+    fn deserialize_i64(&mut self) -> Result<i64, Self::Error> {
         let v = self.row.try_get(self.column())?;
 
         Ok(v)
     }
 
-    fn deserialize_u8(&mut self) -> Result<u8, Self::Err> {
+    fn deserialize_u8(&mut self) -> Result<u8, Self::Error> {
         let v = self.row.try_get(self.column())?;
 
         Ok(v)
     }
 
-    fn deserialize_u16(&mut self) -> Result<u16, Self::Err> {
+    fn deserialize_u16(&mut self) -> Result<u16, Self::Error> {
         let v = self.row.try_get(self.column())?;
 
         Ok(v)
     }
 
-    fn deserialize_u32(&mut self) -> Result<u32, Self::Err> {
+    fn deserialize_u32(&mut self) -> Result<u32, Self::Error> {
         let v = self.row.try_get(self.column())?;
 
         Ok(v)
     }
 
-    fn deserialize_u64(&mut self) -> Result<u64, Self::Err> {
+    fn deserialize_u64(&mut self) -> Result<u64, Self::Error> {
         let v = self.row.try_get(self.column())?;
 
         Ok(v)
     }
 
-    fn deserialize_f32(&mut self) -> Result<f32, Self::Err> {
+    fn deserialize_f32(&mut self) -> Result<f32, Self::Error> {
         let v = self.row.try_get(self.column())?;
 
         Ok(v)
     }
 
-    fn deserialize_f64(&mut self) -> Result<f64, Self::Err> {
+    fn deserialize_f64(&mut self) -> Result<f64, Self::Error> {
         let v = self.row.try_get(self.column())?;
 
         Ok(v)
     }
 
-    fn deserialize_string(&mut self) -> Result<String, Self::Err> {
+    fn deserialize_string(&mut self) -> Result<String, Self::Error> {
         let v = self.row.try_get(self.column())?;
 
         Ok(v)
     }
 
-    fn deserialize_field<T>(&mut self, key: &'static str) -> Result<T, Self::Err>
+    fn deserialize_field<T>(&mut self, key: &'static str) -> Result<T, Self::Error>
     where
         T: Deserialize<MysqlStore>,
     {
@@ -522,7 +545,7 @@ impl Deserializer<MysqlStore> for MysqlDeserializer {
 // ====================================================
 
 impl Serialize<MysqlStore> for bool {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
     where
         S: Serializer<MysqlStore>,
     {
@@ -531,7 +554,7 @@ impl Serialize<MysqlStore> for bool {
 }
 
 impl Serialize<MysqlStore> for i8 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
     where
         S: Serializer<MysqlStore>,
     {
@@ -540,7 +563,7 @@ impl Serialize<MysqlStore> for i8 {
 }
 
 impl Serialize<MysqlStore> for i16 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
     where
         S: Serializer<MysqlStore>,
     {
@@ -549,7 +572,7 @@ impl Serialize<MysqlStore> for i16 {
 }
 
 impl Serialize<MysqlStore> for i32 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
     where
         S: Serializer<MysqlStore>,
     {
@@ -558,7 +581,7 @@ impl Serialize<MysqlStore> for i32 {
 }
 
 impl Serialize<MysqlStore> for i64 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
     where
         S: Serializer<MysqlStore>,
     {
@@ -567,7 +590,7 @@ impl Serialize<MysqlStore> for i64 {
 }
 
 impl Serialize<MysqlStore> for u8 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
     where
         S: Serializer<MysqlStore>,
     {
@@ -576,7 +599,7 @@ impl Serialize<MysqlStore> for u8 {
 }
 
 impl Serialize<MysqlStore> for u16 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
     where
         S: Serializer<MysqlStore>,
     {
@@ -585,7 +608,7 @@ impl Serialize<MysqlStore> for u16 {
 }
 
 impl Serialize<MysqlStore> for u32 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
     where
         S: Serializer<MysqlStore>,
     {
@@ -594,7 +617,7 @@ impl Serialize<MysqlStore> for u32 {
 }
 
 impl Serialize<MysqlStore> for u64 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
     where
         S: Serializer<MysqlStore>,
     {
@@ -603,7 +626,7 @@ impl Serialize<MysqlStore> for u64 {
 }
 
 impl Serialize<MysqlStore> for f32 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
     where
         S: Serializer<MysqlStore>,
     {
@@ -612,7 +635,7 @@ impl Serialize<MysqlStore> for f32 {
 }
 
 impl Serialize<MysqlStore> for f64 {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
     where
         S: Serializer<MysqlStore>,
     {
@@ -621,7 +644,7 @@ impl Serialize<MysqlStore> for f64 {
 }
 
 impl Serialize<MysqlStore> for str {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
     where
         S: Serializer<MysqlStore>,
     {
@@ -630,7 +653,7 @@ impl Serialize<MysqlStore> for str {
 }
 
 impl Serialize<MysqlStore> for String {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Err>
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
     where
         S: Serializer<MysqlStore>,
     {
@@ -643,7 +666,7 @@ impl Serialize<MysqlStore> for String {
 // ======================================================
 
 impl Deserialize<MysqlStore> for bool {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Err>
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
     where
         D: Deserializer<MysqlStore>,
     {
@@ -652,7 +675,7 @@ impl Deserialize<MysqlStore> for bool {
 }
 
 impl Deserialize<MysqlStore> for i8 {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Err>
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
     where
         D: Deserializer<MysqlStore>,
     {
@@ -661,7 +684,7 @@ impl Deserialize<MysqlStore> for i8 {
 }
 
 impl Deserialize<MysqlStore> for i16 {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Err>
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
     where
         D: Deserializer<MysqlStore>,
     {
@@ -670,7 +693,7 @@ impl Deserialize<MysqlStore> for i16 {
 }
 
 impl Deserialize<MysqlStore> for i32 {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Err>
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
     where
         D: Deserializer<MysqlStore>,
     {
@@ -679,7 +702,7 @@ impl Deserialize<MysqlStore> for i32 {
 }
 
 impl Deserialize<MysqlStore> for i64 {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Err>
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
     where
         D: Deserializer<MysqlStore>,
     {
@@ -688,7 +711,7 @@ impl Deserialize<MysqlStore> for i64 {
 }
 
 impl Deserialize<MysqlStore> for u8 {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Err>
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
     where
         D: Deserializer<MysqlStore>,
     {
@@ -697,7 +720,7 @@ impl Deserialize<MysqlStore> for u8 {
 }
 
 impl Deserialize<MysqlStore> for u16 {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Err>
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
     where
         D: Deserializer<MysqlStore>,
     {
@@ -706,7 +729,7 @@ impl Deserialize<MysqlStore> for u16 {
 }
 
 impl Deserialize<MysqlStore> for u32 {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Err>
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
     where
         D: Deserializer<MysqlStore>,
     {
@@ -715,7 +738,7 @@ impl Deserialize<MysqlStore> for u32 {
 }
 
 impl Deserialize<MysqlStore> for u64 {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Err>
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
     where
         D: Deserializer<MysqlStore>,
     {
@@ -724,7 +747,7 @@ impl Deserialize<MysqlStore> for u64 {
 }
 
 impl Deserialize<MysqlStore> for f32 {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Err>
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
     where
         D: Deserializer<MysqlStore>,
     {
@@ -733,7 +756,7 @@ impl Deserialize<MysqlStore> for f32 {
 }
 
 impl Deserialize<MysqlStore> for f64 {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Err>
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
     where
         D: Deserializer<MysqlStore>,
     {
@@ -742,7 +765,7 @@ impl Deserialize<MysqlStore> for f64 {
 }
 
 impl Deserialize<MysqlStore> for String {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Err>
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
     where
         D: Deserializer<MysqlStore>,
     {
@@ -752,7 +775,8 @@ impl Deserialize<MysqlStore> for String {
 
 #[cfg(test)]
 mod tests {
-    use super::{super::Serializer, MysqlSerializer, QueryKind};
+    use super::{MysqlSerializer, QueryKind};
+    use robbot::store::Serializer;
 
     #[test]
     fn test_serializer() {
