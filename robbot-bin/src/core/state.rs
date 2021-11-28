@@ -48,7 +48,7 @@ pub struct State {
     pub(crate) commands: Arc<RwLock<HashSet<LoadedCommand>>>,
     pub(crate) task_scheduler: TaskScheduler,
     pub(crate) hook_controller: HookController,
-    pub store: Option<MainStore<crate::core::store::mysql::MysqlStore>>,
+    pub store: MainStore<crate::core::store::mysql::MysqlStore>,
     pub(crate) gateway_connect_time: Arc<RwLock<Option<std::time::Instant>>>,
     /// TODO: Move hook_id handling into hook logic.
     pub(crate) hook_id: Arc<std::sync::atomic::AtomicUsize>,
@@ -62,7 +62,7 @@ impl State {
             commands: Arc::default(),
             task_scheduler: TaskScheduler::new(),
             hook_controller: HookController::new(),
-            store: None,
+            store: MainStore::default(),
             gateway_connect_time: Arc::default(),
             hook_id: Arc::default(),
         }

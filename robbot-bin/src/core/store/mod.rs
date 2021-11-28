@@ -27,12 +27,11 @@ where
     }
 }
 
-#[derive(Default)]
 pub struct MainStore<S>
 where
     S: Store,
 {
-    store: S,
+    store: Option<S>,
 }
 
 impl<S> MainStore<S>
@@ -42,15 +41,24 @@ where
 {
     pub async fn new(uri: &str) -> Result<Self> {
         Ok(Self {
-            store: S::connect(uri).await?,
+            store: Some(S::connect(uri).await?),
         })
+    }
+
+    pub async fn connect(&mut self, uri: &str) -> Result<()> {
+        self.store = Some(S::connect(uri).await?);
+        Ok(())
+    }
+
+    pub fn close(&mut self) {
+        self.store = None;
     }
 
     pub async fn create<T>(&self) -> Result<()>
     where
         T: StoreData<S> + Default + Send,
     {
-        self.store.create::<T>().await?;
+        self.store().create::<T>().await?;
         Ok(())
     }
 
@@ -60,7 +68,7 @@ where
         T: StoreData<S> + Default + Send,
         Q: DataQuery<T, S> + Send,
     {
-        self.store.delete(query).await?;
+        self.store().delete(query).await?;
         Ok(())
     }
 
@@ -73,7 +81,7 @@ where
         T: StoreData<S> + Send + Default,
         Q: DataQuery<T, S> + Send,
     {
-        let data = self.store.get(query).await?;
+        let data = self.store().get(query).await?;
         Ok(data)
     }
 
@@ -81,7 +89,7 @@ where
     where
         T: StoreData<S> + Send + Default,
     {
-        let data = self.store.get_all().await?;
+        let data = self.store().get_all().await?;
         Ok(data)
     }
 
@@ -93,7 +101,7 @@ where
         T: StoreData<S> + Send + Default,
         Q: DataQuery<T, S> + Send + Sync,
     {
-        let data = self.store.get_one(query).await?;
+        let data = self.store().get_one(query).await?;
         Ok(data)
     }
 
@@ -101,7 +109,20 @@ where
     where
         T: StoreData<S> + Send,
     {
-        self.store.insert(data).await?;
+        self.store().insert(data).await?;
         Ok(())
+    }
+
+    fn store(&self) -> &S {
+        self.store.as_ref().unwrap()
+    }
+}
+
+impl<S> Default for MainStore<S>
+where
+    S: Store,
+{
+    fn default() -> Self {
+        Self { store: None }
     }
 }

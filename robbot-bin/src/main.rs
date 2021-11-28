@@ -66,11 +66,11 @@ async fn main() {
     let mut state = State::new();
 
     // Create a store
-    state.store = Some(
-        crate::core::store::MainStore::new(&config.database.connect_string())
-            .await
-            .unwrap(),
-    );
+    state
+        .store
+        .connect(&config.database.connect_string())
+        .await
+        .unwrap();
 
     state.config = Arc::new(RwLock::new(config.clone()));
 
