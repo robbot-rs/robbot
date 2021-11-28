@@ -6,14 +6,16 @@ pub mod context;
 pub mod executor;
 pub mod hook;
 pub mod model;
+pub mod store;
 pub mod task;
 
-pub use robbot_derive::command;
+pub use robbot_derive::{command, StoreData};
 pub use {
     arguments::Arguments,
     bot::{Error, Result},
     command::Command,
     context::Context,
+    store::StoreData,
     task::{Task, TaskSchedule},
 };
 
@@ -25,6 +27,7 @@ pub mod prelude {
         },
         command::Command,
         context::Context,
+        store::StoreData,
     };
-    pub use robbot_derive::command;
+    pub use robbot_derive::{command, StoreData};
 }
