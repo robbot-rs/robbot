@@ -60,9 +60,9 @@ fn expand_storedata(ident: &Ident, field_idents: &[Ident], field_types: &[Type])
     let dataquery_ident = Ident::new(&format!("{}Query", ident), Span::call_site());
 
     quote! {
-        impl<T> crate::core::store::StoreData<T> for #ident
+        impl<T> robbot::store::StoreData<T> for #ident
         where
-            T: crate::core::store::Store,
+            T: robbot::store::Store,
             #trait_bounds
         {
             type DataQuery = #dataquery_ident;
@@ -71,17 +71,17 @@ fn expand_storedata(ident: &Ident, field_idents: &[Ident], field_types: &[Type])
                 String::from(#resource_name)
             }
 
-            fn serialize<S>(&self, serializer: &mut S) -> ::std::result::Result<(), S::Err>
+            fn serialize<S>(&self, serializer: &mut S) -> ::std::result::Result<(), S::Error>
             where
-                S: crate::core::store::Serializer<T>,
+                S: robbot::store::Serializer<T>,
             {
                 #(#impl_serialize)*
                 ::std::result::Result::Ok(())
             }
 
-            fn deserialize<D>(deserializer: &mut D) -> ::std::result::Result<Self, D::Err>
+            fn deserialize<D>(deserializer: &mut D) -> ::std::result::Result<Self, D::Error>
             where
-                D: crate::core::store::Deserializer<T>,
+                D: robbot::store::Deserializer<T>,
             {
                 #(#impl_deserialize)*
 
@@ -145,14 +145,14 @@ fn expand_dataquery(ident: &Ident, field_idents: &[Ident], field_types: &[Type])
             #(#dataquery_fns)*
         }
 
-        impl<T> crate::core::store::DataQuery<#ident, T> for #dataquery_ident
+        impl<T> robbot::store::DataQuery<#ident, T> for #dataquery_ident
         where
-            T: crate::core::store::Store,
+            T: robbot::store::Store,
             #trait_bounds
         {
-            fn serialize<S>(&self, serializer: &mut S) -> ::std::result::Result<(), S::Err>
+            fn serialize<S>(&self, serializer: &mut S) -> ::std::result::Result<(), S::Error>
             where
-                S: crate::core::store::Serializer<T>,
+                S: robbot::store::Serializer<T>,
             {
                 #(#impl_serialize)*
 
@@ -178,14 +178,14 @@ fn expand_dataquery_self(
     });
 
     quote! {
-        impl<T> crate::core::store::DataQuery<#ident, T> for #ident
+        impl<T> robbot::store::DataQuery<#ident, T> for #ident
         where
-            T: crate::core::store::Store,
+            T: robbot::store::Store,
             #trait_bounds
         {
-            fn serialize<S>(&self, serializer: &mut S) -> ::std::result::Result<(), S::Err>
+            fn serialize<S>(&self, serializer: &mut S) -> ::std::result::Result<(), S::Error>
             where
-                S: crate::core::store::Serializer<T>,
+                S: robbot::store::Serializer<T>,
             {
                 #(#impl_serialize)*
 
@@ -208,7 +208,7 @@ fn expand_type_trait_bounds(types: &[Type]) -> TokenStream {
 
     quote! {
         #(
-            #traits: crate::core::store::Serialize<T> + crate::core::store::Deserialize<T>,
+            #traits: robbot::store::Serialize<T> + robbot::store::Deserialize<T>,
         )*
     }
 }
