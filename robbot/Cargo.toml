@@ -1,12 +1,12 @@
 [package]
 name = "robbot"
-version = "0.1.0"
-edition = "2018"
+version = "0.4.3"
+edition = "2021"
 
 [dependencies]
-robbot-derive = { version = "0.1.0", path = "../robbot-derive" }
-tokio = "1.12.0"
-async-trait = "0.1.51"
-serenity = { version = "0.10.8", default-features = false, features = ["builder", "model", "rustls_backend"] }
-chrono = "0.4.19"
-serde = { version = "1.0.*", features = ["derive"] }
+robbot-derive = { version = "0.4.3", path = "../robbot-derive" }
+tokio = "~1.14.0"
+async-trait = "~0.1.51"
+serenity = { version = "~0.10.9", default-features = false, features = ["builder", "model", "rustls_backend"] }
+chrono = "~0.4.19"
+serde = { version = "~1.0.130", features = ["derive"] }

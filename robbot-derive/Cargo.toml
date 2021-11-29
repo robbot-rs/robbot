@@ -1,12 +1,12 @@
 [package]
 name = "robbot-derive"
-version = "0.1.0"
-edition = "2018"
+version = "0.4.3"
+edition = "2021"
 
 [lib]
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "1.0"
-quote = "1.0"
-syn = "1.0.80"
+proc-macro2 = "~1.0.32"
+quote = "~1.0.10"
+syn = "~1.0.82"
