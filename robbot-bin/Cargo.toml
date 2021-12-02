@@ -36,7 +36,8 @@ futures = "~0.3.18"
 reqwest = "~0.11.6"
 itoa = "~0.4.8"
 dtoa = "~0.4.8"
-robbot-derive = { version = "0.1.0", path = "../robbot-derive" }
-robbot = { version = "0.1.0", path = "../robbot" }
+robbot-derive = { version = "~0.4.3", path = "../robbot-derive" }
+robbot = { version = "~0.4.3", path = "../robbot" }
 toml = "~0.5.8"
 log = { version = "~0.4.14", features = ["std", "serde"] }
+robbot-core = { version = "~0.4.3", path = "../robbot-core" }
