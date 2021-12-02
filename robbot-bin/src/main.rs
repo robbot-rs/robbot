@@ -1,4 +1,3 @@
-pub mod bot;
 mod builtin;
 mod config;
 mod help;
