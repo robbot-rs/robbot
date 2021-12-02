@@ -11,32 +11,53 @@ pub trait Store: Sized {
 
     async fn connect(uri: &str) -> Result<Self, Self::Error>;
 
+    /// Initializes the store for storing data of the type `T`.
+    /// If `create` was not called before calling [`delete`],
+    /// [`get`], [`get_all`], [`get_one`] or [`insert`] on the
+    /// store, the operation might fail.
+    ///
+    /// Note: Calling `create` might not be required for all
+    /// store types.
     async fn create<T>(&self) -> Result<(), Self::Error>
     where
-        T: StoreData<Self> + Default + Send;
+        T: StoreData<Self> + Default + Send + Sync + 'static;
 
+    /// Deletes all items of type `T` matching the query `Q`
+    /// from the store.
     async fn delete<T, Q>(&self, query: Q) -> Result<(), Self::Error>
     where
-        T: StoreData<Self> + Default + Send,
+        T: StoreData<Self> + Default + Send + Sync + 'static,
         Q: DataQuery<T, Self> + Send;
 
+    /// Returns all items of type `T` matching the query `Q`
+    /// from the store. If no items are stored, an empty [`Vec`]
+    /// is returned.
     async fn get<T, Q>(&self, query: Q) -> Result<Vec<T>, Self::Error>
     where
-        T: StoreData<Self> + Default + Send,
+        T: StoreData<Self> + Default + Send + Sync + 'static,
         Q: DataQuery<T, Self> + Send;
 
+    /// Returns all items of type `T` from the store. If no items
+    /// are stored, an empty [`Vec`] is returned.
     async fn get_all<T>(&self) -> Result<Vec<T>, Self::Error>
     where
-        T: StoreData<Self> + Default + Send;
+        T: StoreData<Self> + Default + Send + Sync + 'static;
 
-    async fn get_one<T, Q>(&self, query: Q) -> Result<T, Self::Error>
+    /// Returns the an item of type `T` matching the query `Q`
+    /// from the store. If no items of type `T` are stored, `None`
+    /// is returned.
+    ///
+    /// Note: There is no guarantee of how items are ordered. `get_one`
+    /// might return different items depending on the store.
+    async fn get_one<T, Q>(&self, query: Q) -> Result<Option<T>, Self::Error>
     where
-        T: StoreData<Self> + Default + Send,
+        T: StoreData<Self> + Default + Send + Sync + 'static,
         Q: DataQuery<T, Self> + Send;
 
+    /// Inserts a new item into the store.
     async fn insert<T>(&self, data: T) -> Result<(), Self::Error>
     where
-        T: StoreData<Self> + Send;
+        T: StoreData<Self> + Send + Sync + 'static;
 }
 
 pub trait Serializer<S>
@@ -113,7 +134,7 @@ where
         D: Deserializer<T>;
 }
 
-pub trait StoreData<T>: Sized
+pub trait StoreData<T>: Sized + Clone
 where
     T: Store,
 {
