@@ -1,7 +1,6 @@
 pub mod bot;
 mod builtin;
 mod config;
-mod core;
 mod help;
 mod logger;
 mod macros;
@@ -11,21 +10,16 @@ mod plugins;
 /// Path of the default config.toml file.
 const DEFAULT_CONFIG: &str = "./config.toml";
 
-use crate::{
-    config::Config,
-    core::{hook::Event, router::parse_args, router::route_command, state::State},
-};
 use async_trait::async_trait;
 use clap::{App, Arg};
 use robbot::{executor::Executor as _, Command as _, Context as ContextExt, Error};
+use robbot_core::{
+    router::{find_command, parse_args},
+    state::State,
+};
 use serenity::{
     client::{bridge::gateway::GatewayIntents, Client, Context, EventHandler},
-    model::{
-        channel::{GuildChannel, Message, Reaction},
-        guild::Member,
-        id::{ChannelId, GuildId, MessageId},
-        user::User,
-    },
+    model::channel::Message,
 };
 use std::sync::{Arc, RwLock};
 
@@ -48,7 +42,7 @@ async fn main() {
     let config = matches.value_of("config").unwrap_or(DEFAULT_CONFIG);
 
     // Load the config.toml file.
-    let config = Config::load(config);
+    let config = config::from_file(config);
 
     logger::init(&config);
 
@@ -67,7 +61,7 @@ async fn main() {
 
     // Create a store
     state
-        .store
+        .store_mut()
         .connect(&config.database.connect_string())
         .await
         .unwrap();
@@ -96,83 +90,8 @@ pub struct Handler {
 
 #[async_trait]
 impl EventHandler for Handler {
-    async fn channel_create(&self, ctx: Context, channel: &GuildChannel) {
-        self.state
-            .hook_controller
-            .send_event(Event::ChannelCreate(Box::new(bot::Context::new(
-                ctx,
-                self.state.clone(),
-                channel.to_owned(),
-            ))))
-            .await;
-    }
-
-    async fn channel_delete(&self, ctx: Context, channel: &GuildChannel) {
-        self.state
-            .hook_controller
-            .send_event(Event::ChannelDelete(Box::new(bot::Context::new(
-                ctx,
-                self.state.clone(),
-                channel.to_owned(),
-            ))))
-            .await;
-    }
-
-    async fn guild_member_addition(&self, ctx: Context, guild_id: GuildId, new_member: Member) {
-        self.state
-            .hook_controller
-            .send_event(Event::GuildMemberAddition(Box::new(bot::Context::new(
-                ctx,
-                self.state.clone(),
-                (guild_id, new_member),
-            ))))
-            .await;
-    }
-
-    async fn guild_member_removal(
-        &self,
-        ctx: Context,
-        guild_id: GuildId,
-        user: User,
-        member_data_if_available: Option<Member>,
-    ) {
-        self.state
-            .hook_controller
-            .send_event(Event::GuildMemberRemoval(Box::new(bot::Context::new(
-                ctx,
-                self.state.clone(),
-                (guild_id, user, member_data_if_available),
-            ))))
-            .await;
-    }
-
-    async fn guild_member_update(
-        &self,
-        ctx: Context,
-        old_if_available: Option<Member>,
-        new: Member,
-    ) {
-        self.state
-            .hook_controller
-            .send_event(Event::GuildMemberUpdate(Box::new(bot::Context::new(
-                ctx,
-                self.state.clone(),
-                (old_if_available, new),
-            ))))
-            .await;
-    }
-
     async fn message(&self, ctx: Context, message: Message) {
         let message = robbot::model::Message::from(message);
-
-        self.state
-            .hook_controller
-            .send_event(Event::Message(Box::new(bot::Context::new(
-                ctx.clone(),
-                self.state.clone(),
-                message.clone(),
-            ))))
-            .await;
 
         let msg = match message.content.strip_prefix('!') {
             Some(msg) => msg,
@@ -182,7 +101,7 @@ impl EventHandler for Handler {
         #[cfg(feature = "permissions")]
         {
             let config = self.state.config.read().unwrap();
-            let admins = &config.superusers;
+            let admins = &config.admins;
 
             if !admins.contains(&message.author.id.0) {
                 return;
@@ -192,15 +111,16 @@ impl EventHandler for Handler {
         let mut args = parse_args(msg);
 
         let cmd = {
-            let commands = self.state.commands.read().unwrap();
+            let commands = self.state.commands().get_inner();
+            let commands = commands.read().unwrap();
 
-            match route_command(&commands, &mut args) {
-                Some(cmd) => cmd,
+            match find_command(&commands, &mut args) {
+                Some(cmd) => cmd.clone(),
                 None => return,
             }
         };
 
-        let ctx = bot::Context {
+        let ctx = robbot_core::context::Context {
             raw_ctx: ctx.clone(),
             state: self.state.clone(),
             args: args.iter().map(|s| s.to_string()).collect(),
@@ -209,7 +129,7 @@ impl EventHandler for Handler {
 
         // Return if the command is guild-only and the message is
         // not send from within a guild.
-        if cmd.guild_only && message.guild_id.is_none() {
+        if cmd.guild_only() && message.guild_id.is_none() {
             let _ = ctx
                 .respond(":x: This command can only be used in guilds.")
                 .await;
@@ -229,7 +149,7 @@ impl EventHandler for Handler {
                                 .channel_id
                                 .send_message(&ctx.raw_ctx, |m| {
                                     m.embed(|e| {
-                                        e.title(format!("Command Help: {}", cmd.name));
+                                        e.title(format!("Command Help: {}", cmd.name()));
                                         e.description(help::command(&cmd));
                                         e
                                     });
@@ -252,7 +172,7 @@ impl EventHandler for Handler {
                     .channel_id
                     .send_message(&ctx.raw_ctx, |m| {
                         m.embed(|e| {
-                            e.title(format!("Command Help: {}", cmd.name));
+                            e.title(format!("Command Help: {}", cmd.name()));
                             e.description(help::command(&cmd));
                             e
                         });
@@ -263,60 +183,12 @@ impl EventHandler for Handler {
         }
     }
 
-    async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
-        self.state
-            .hook_controller
-            .send_event(Event::ReactionAdd(Box::new(bot::Context::new(
-                ctx,
-                self.state.clone(),
-                add_reaction,
-            ))))
-            .await;
-    }
-
-    async fn reaction_remove(&self, ctx: Context, removed_reaction: Reaction) {
-        self.state
-            .hook_controller
-            .send_event(Event::ReactionRemove(Box::new(bot::Context::new(
-                ctx,
-                self.state.clone(),
-                removed_reaction,
-            ))))
-            .await;
-    }
-
-    async fn reaction_remove_all(
-        &self,
-        ctx: Context,
-        channel_id: ChannelId,
-        removed_from_message_id: MessageId,
-    ) {
-        self.state
-            .hook_controller
-            .send_event(Event::ReactionRemoveAll(Box::new(bot::Context::new(
-                ctx,
-                self.state.clone(),
-                (channel_id, removed_from_message_id),
-            ))))
-            .await;
-    }
-
-    async fn ready(&self, ctx: Context, _: serenity::model::gateway::Ready) {
+    async fn ready(&self, _ctx: Context, _ready: serenity::model::gateway::Ready) {
         log::info!("[BOT] Bot online");
 
         {
-            let mut connect_time = self.state.gateway_connect_time.write().unwrap();
+            let mut connect_time = self.state.connect_time.write().unwrap();
             *connect_time = Some(std::time::Instant::now());
         }
-
-        self.state
-            .task_scheduler
-            .update_context(Some(bot::Context {
-                raw_ctx: ctx,
-                state: self.state.clone(),
-                args: robbot::Arguments::new(),
-                event: (),
-            }))
-            .await;
     }
 }
