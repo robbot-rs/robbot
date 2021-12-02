@@ -6,7 +6,7 @@ use tokio::{
     task,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Executor<T>
 where
     T: Context + Send,
@@ -44,7 +44,7 @@ where
             }
         });
 
-        Self { tx }
+        Self::new(tx)
     }
 
     async fn send(&self, ctx: T) -> Result {
@@ -54,8 +54,8 @@ where
 
         match rx.await {
             Ok(val) => val,
-            // Sender was dropped. If this happens the
-            // task likely panicked.
+            // The sender was dropped. This likely
+            // happened because the command panicked.
             Err(_) => Err(Error::NoResponse),
         }
     }

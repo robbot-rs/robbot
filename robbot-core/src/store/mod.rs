@@ -27,11 +27,12 @@ where
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct MainStore<S>
 where
     S: Store,
 {
-    store: Option<S>,
+    main: Option<S>,
 }
 
 impl<S> MainStore<S>
@@ -41,80 +42,76 @@ where
 {
     pub async fn new(uri: &str) -> Result<Self> {
         Ok(Self {
-            store: Some(S::connect(uri).await?),
+            main: Some(S::connect(uri).await?),
         })
     }
 
     pub async fn connect(&mut self, uri: &str) -> Result<()> {
-        self.store = Some(S::connect(uri).await?);
+        self.main = Some(S::connect(uri).await?);
         Ok(())
     }
 
     pub fn close(&mut self) {
-        self.store = None;
+        self.main = None;
     }
 
     pub async fn create<T>(&self) -> Result<()>
     where
-        T: StoreData<S> + Default + Send,
+        T: StoreData<S> + Default + Send + Sync + 'static,
     {
-        self.store().create::<T>().await?;
+        self.main_store().create::<T>().await?;
         Ok(())
     }
 
-    /// Delete all items matching the query.
     pub async fn delete<T, Q>(&self, query: Q) -> Result<()>
     where
-        T: StoreData<S> + Default + Send,
+        T: StoreData<S> + Default + Send + Sync + 'static,
         Q: DataQuery<T, S> + Send,
     {
-        self.store().delete(query).await?;
+        self.main_store().delete(query).await?;
         Ok(())
     }
 
-    /// Returns all items from the store that match the query. Using
-    /// `None` as the query returns all items avaliable.
-    ///
-    /// If you only need a single item, use [`Self::get_one`].
     pub async fn get<T, Q>(&self, query: Q) -> Result<Vec<T>>
     where
-        T: StoreData<S> + Send + Default,
+        T: StoreData<S> + Send + Sync + Default + 'static,
         Q: DataQuery<T, S> + Send,
     {
-        let data = self.store().get(query).await?;
+        let data = self.main_store().get(query).await?;
         Ok(data)
     }
 
     pub async fn get_all<T>(&self) -> Result<Vec<T>>
     where
-        T: StoreData<S> + Send + Default,
+        T: StoreData<S> + Send + Sync + Default + 'static,
     {
-        let data = self.store().get_all().await?;
+        let data = self.main_store().get_all().await?;
         Ok(data)
     }
 
-    /// Returns the first item matching the query.
-    ///
-    /// If you need all items matching the query, use [`Self::get`].
-    pub async fn get_one<T, Q>(&self, query: Q) -> Result<T>
+    pub async fn get_one<T, Q>(&self, query: Q) -> Result<Option<T>>
     where
-        T: StoreData<S> + Send + Default,
+        T: StoreData<S> + Send + Sync + Default + 'static,
         Q: DataQuery<T, S> + Send + Sync,
     {
-        let data = self.store().get_one(query).await?;
+        let data = self.main_store().get_one(query).await?;
         Ok(data)
     }
 
     pub async fn insert<T>(&self, data: T) -> Result<()>
     where
-        T: StoreData<S> + Send,
+        T: StoreData<S> + Send + Sync + 'static,
     {
-        self.store().insert(data).await?;
+        self.main_store().insert(data).await?;
         Ok(())
     }
 
-    fn store(&self) -> &S {
-        self.store.as_ref().unwrap()
+    fn main_store(&self) -> &S {
+        self.main.as_ref().unwrap()
+    }
+
+    pub fn is_connected(&self) -> bool {
+        self.main.is_some()
     }
 }
 
@@ -123,6 +120,6 @@ where
     S: Store,
 {
     fn default() -> Self {
-        Self { store: None }
+        Self { main: None }
     }
 }

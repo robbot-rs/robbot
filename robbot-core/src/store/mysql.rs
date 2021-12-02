@@ -141,7 +141,7 @@ impl Store for MysqlStore {
         Ok(entries)
     }
 
-    async fn get_one<T, Q>(&self, query: Q) -> Result<T, Error>
+    async fn get_one<T, Q>(&self, query: Q) -> Result<Option<T>, Error>
     where
         T: StoreData<Self> + Default + Send,
         Q: DataQuery<T, Self> + Send,
@@ -162,7 +162,7 @@ impl Store for MysqlStore {
         let mut deserializer = MysqlDeserializer::new(row);
         let data = T::deserialize(&mut deserializer).unwrap();
 
-        Ok(data)
+        Ok(Some(data))
     }
 
     async fn insert<T>(&self, data: T) -> Result<(), Error>
@@ -820,7 +820,10 @@ mod tests {
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Create);
         serializer.serialize_field("id", &3).unwrap();
 
-        assert_eq!(serializer.into_sql(), "CREATE TABLE test (id INT)");
+        assert_eq!(
+            serializer.into_sql(),
+            "CREATE TABLE IF NOT EXISTS test (id INT)"
+        );
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Create);
         serializer.serialize_field("id", &3).unwrap();
@@ -828,7 +831,7 @@ mod tests {
 
         assert_eq!(
             serializer.into_sql(),
-            "CREATE TABLE test (id INT, name BIGINT)"
+            "CREATE TABLE IF NOT EXISTS test (id INT, name BIGINT)"
         );
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Delete);
