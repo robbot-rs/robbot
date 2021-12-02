@@ -37,12 +37,12 @@ pub fn command(attr: TokenStream, input: TokenStream) -> TokenStream {
     let expanded = quote! {
         #exec_fn
 
-        pub fn #ident() -> crate::core::command::Command {
+        pub fn #ident() -> robbot_core::command::Command {
             use ::robbot::executor::Executor;
 
-            let exec = crate::core::executor::Executor::from_fn(#command_ident);
+            let exec = robbot_core::executor::Executor::from_fn(#command_ident);
 
-            let mut cmd = crate::core::command::Command::new(#ident_str);
+            let mut cmd = robbot_core::command::Command::new(#ident_str);
             cmd.executor = Some(exec);
 
             #(#recurse)*
