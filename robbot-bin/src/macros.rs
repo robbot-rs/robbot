@@ -1,8 +1,8 @@
 #[macro_export]
 macro_rules! command {
     ($name:ident $(, description: $description:expr)? $(, arguments: $arguments:expr)? $(, executor: $executor:expr)?$(,)?) => {
-        fn $name() -> $crate::core::command::Command {
-            let mut cmd = $crate::core::command::Command::new(stringify!($name).to_owned());
+        fn $name() -> robbot_core::command::Command {
+            let mut cmd = robbot_core::command::Command::new(stringify!($name).to_owned());
 
             $(
                 cmd.description = $description.to_string();
@@ -11,7 +11,7 @@ macro_rules! command {
             $(
                 use ::robbot::executor::Executor;
 
-                let executor = $crate::core::executor::Executor::from_fn($executor);
+                let executor = robbot_core::executor::Executor::from_fn($executor);
                 cmd.executor = Some(executor);
             )?
 
@@ -29,7 +29,7 @@ macro_rules! task {
             $crate::core::task::Task {
                 name: stringify!($name).to_owned(),
                 schedule: $schedule,
-                executor: $crate::core::executor::Executor::from_fn($executor),
+                executor: robbot_core::executor::Executor::from_fn($executor),
                 on_load: true,
             }
         }

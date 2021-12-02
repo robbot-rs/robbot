@@ -1,9 +1,6 @@
-use crate::{
-    bot::MessageContext,
-    core::{command::Command, router::route_command, state::State},
-    help,
-};
+use crate::help;
 use robbot::{builder::CreateMessage, command, Context, Result};
+use robbot_core::{command::Command, context::MessageContext, router::find_command, state::State};
 use serenity::utils::Color;
 
 const EMBED_COLOR: Color = Color::from_rgb(0xFF, 0xA6, 0x00);
@@ -12,7 +9,7 @@ pub fn init(state: &State) {
     const COMMANDS: &[fn() -> Command] = &[help, uptime, version];
 
     for f in COMMANDS {
-        state.add_command(f(), None).unwrap();
+        state.commands().load_command(f(), None).unwrap();
     }
 }
 
@@ -21,12 +18,14 @@ async fn help(ctx: MessageContext) -> Result {
     let description = {
         let mut args: Vec<&str> = ctx.args.iter().map(|s| s.as_str()).collect();
 
-        let commands = ctx.state.commands.read().unwrap();
+        // let commands = ctx.state.commands.read().unwrap();
+        let commands = ctx.state.commands().get_inner();
+        let commands = commands.read().unwrap();
 
         match args.is_empty() {
             // Try to show command help.
-            false => match route_command(&commands, &mut args) {
-                Some(command) => help::command(&command),
+            false => match find_command(&commands, &mut args) {
+                Some(command) => help::command(command),
                 // Cannot find command, show global help instead.
                 None => help::global(&commands),
             },
@@ -50,7 +49,7 @@ async fn help(ctx: MessageContext) -> Result {
 #[command(description = "Show the bot uptime.")]
 async fn uptime(ctx: MessageContext) -> Result {
     let description = {
-        let connect_time = ctx.state.gateway_connect_time.read().unwrap().unwrap();
+        let connect_time = ctx.state.connect_time.read().unwrap().unwrap();
 
         match connect_time.elapsed().as_secs() {
             secs if secs >= 3600 => format!(

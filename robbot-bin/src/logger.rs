@@ -1,6 +1,6 @@
-use crate::config::Config;
 use chrono::Local;
 use log::{Level, Log, Metadata, Record};
+use robbot_core::config::Config;
 
 pub fn init(config: &Config) {
     log::set_logger(&Logger).unwrap();
@@ -11,7 +11,7 @@ pub struct Logger;
 
 impl Log for Logger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.target().starts_with("robbot_bin")
+        metadata.target().starts_with("robbot")
     }
 
     fn log(&self, record: &Record) {
