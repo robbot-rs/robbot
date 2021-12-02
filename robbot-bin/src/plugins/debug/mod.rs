@@ -1,17 +1,20 @@
 //! # Debug plugin
 //! Adds a few info commands under the debug module
 //! in debug build mode.
-use crate::{bot::MessageContext, core::state::State};
-use robbot::{
-    builder::CreateMessage, command, hook::EventKind, Context, Error::InvalidCommandUsage, Result,
-};
+use robbot::{builder::CreateMessage, command, Context, Result};
+use robbot_core::{context::MessageContext, state::State};
 use std::{fmt::Write, sync::Arc};
 
 pub fn init(state: Arc<State>) {
-    state.add_command(debug(), None).unwrap();
-    state.add_command(parse_args(), Some("debug")).unwrap();
-    state.add_command(taskqueue(), Some("debug")).unwrap();
-    state.add_command(await_hook(), Some("debug")).unwrap();
+    state.commands().load_command(debug(), None).unwrap();
+    state
+        .commands()
+        .load_command(parse_args(), Some("debug"))
+        .unwrap();
+    state
+        .commands()
+        .load_command(taskqueue(), Some("debug"))
+        .unwrap();
 }
 
 crate::command!(
@@ -19,7 +22,7 @@ crate::command!(
     description: "Debugging and core info command. Unavaliable in release build."
 );
 
-#[command(description = "Print out all parsed arguments.")]
+#[command(description = "Print out all parsed arguments.", usage = "[Args...]")]
 async fn parse_args(ctx: MessageContext) -> Result {
     let args: Vec<&str> = ctx.args.iter().map(|s| s.as_str()).collect();
 
@@ -32,15 +35,15 @@ async fn parse_args(ctx: MessageContext) -> Result {
 async fn taskqueue(ctx: MessageContext) -> Result {
     let mut description = String::new();
 
-    let tasks = ctx.state.task_scheduler.get_tasks().await;
+    let tasks = ctx.state.tasks().get_tasks().await;
     match tasks.len() {
         0 => description.push_str("No tasks scheduled."),
         _ => {
-            for task in ctx.state.task_scheduler.get_tasks().await {
+            for (task, execution_time) in ctx.state.tasks().get_tasks().await {
                 let _ = writeln!(
                     description,
                     "Task `{}` scheduled at `{}`.",
-                    task.name, task.next_exec
+                    task.name, execution_time
                 );
             }
         }
@@ -53,29 +56,6 @@ async fn taskqueue(ctx: MessageContext) -> Result {
         });
     }))
     .await?;
-
-    Ok(())
-}
-
-#[command(description = "Await a single hook of a specific type.")]
-async fn await_hook(mut ctx: MessageContext) -> Result {
-    if ctx.args.len() != 1 {
-        return Err(InvalidCommandUsage);
-    }
-
-    let event_kind: EventKind = match ctx.args.pop_first() {
-        Ok(event_kind) => event_kind,
-        Err(_) => {
-            let _ = ctx.respond(":x: Invalid event type.").await;
-            return Ok(());
-        }
-    };
-
-    let mut rx = ctx.state.hook_controller.get_receiver(event_kind).await;
-
-    let _ = rx.recv().await.unwrap();
-
-    let _ = ctx.respond("Got Event Data").await;
 
     Ok(())
 }
