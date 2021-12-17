@@ -1,7 +1,10 @@
 use crate::state::State;
 use async_trait::async_trait;
 use robbot::{
-    arguments::Arguments, builder::CreateMessage, context::Context as ContextExt, model::Message,
+    arguments::{CommandArguments, OwnedArguments},
+    builder::CreateMessage,
+    context::Context as ContextExt,
+    model::Message,
 };
 use serenity::{
     client::Context as RawContext,
@@ -18,7 +21,7 @@ pub type MessageContext = Context<Message>;
 pub struct Context<T> {
     pub raw_ctx: RawContext,
     pub state: Arc<State>,
-    pub args: Arguments,
+    pub args: CommandArguments,
     pub event: T,
 }
 
@@ -27,7 +30,7 @@ impl<T> Context<T> {
         Self {
             raw_ctx,
             state,
-            args: Arguments::new(),
+            args: CommandArguments::new(OwnedArguments::new()),
             event,
         }
     }
