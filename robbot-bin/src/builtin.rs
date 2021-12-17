@@ -1,5 +1,5 @@
 use crate::help;
-use robbot::{builder::CreateMessage, command, Context, Result};
+use robbot::{arguments::ArgumentsExt, builder::CreateMessage, command, Context, Result};
 use robbot_core::{command::Command, context::MessageContext, router::find_command, state::State};
 use serenity::utils::Color;
 
@@ -14,17 +14,14 @@ pub fn init(state: &State) {
 }
 
 #[command(description = "Show the global help message or a help message for a command.")]
-async fn help(ctx: MessageContext) -> Result {
+async fn help(mut ctx: MessageContext) -> Result {
     let description = {
-        let mut args: Vec<&str> = ctx.args.iter().map(|s| s.as_str()).collect();
-
-        // let commands = ctx.state.commands.read().unwrap();
         let commands = ctx.state.commands().get_inner();
         let commands = commands.read().unwrap();
 
-        match args.is_empty() {
+        match ctx.args.is_empty() {
             // Try to show command help.
-            false => match find_command(&commands, &mut args) {
+            false => match find_command(&commands, &mut ctx.args) {
                 Some(command) => help::command(command),
                 // Cannot find command, show global help instead.
                 None => help::global(&commands),
