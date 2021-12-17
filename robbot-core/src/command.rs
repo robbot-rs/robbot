@@ -3,7 +3,7 @@ use crate::{
     executor::Executor,
     router::{find_command, parse_args},
 };
-use robbot::command::Command as CommandExt;
+use robbot::{arguments::ArgumentsExt, command::Command as CommandExt};
 use std::{
     borrow::Borrow,
     collections::HashSet,
@@ -234,7 +234,8 @@ impl CommandHandler {
 
         let root_set = match path {
             Some(path) => {
-                let cmd = find_command(&cmds, &mut parse_args(path)).ok_or(Error::InvalidPath)?;
+                let cmd = find_command(&cmds, &mut parse_args(path).as_args())
+                    .ok_or(Error::InvalidPath)?;
                 &cmd.sub_commands
             }
             None => &cmds,
@@ -266,7 +267,10 @@ impl CommandHandler {
 
     // pub fn unload_command() {}
 
-    pub fn get_command(&self, args: &mut Vec<&str>) -> Option<LoadedCommand> {
+    pub fn get_command<A>(&self, args: &mut A) -> Option<LoadedCommand>
+    where
+        A: ArgumentsExt,
+    {
         let cmds = self.inner.read().unwrap();
 
         let command = find_command(&cmds, args)?;
