@@ -24,9 +24,7 @@ crate::command!(
 
 #[command(description = "Print out all parsed arguments.", usage = "[Args...]")]
 async fn parse_args(ctx: MessageContext) -> Result {
-    let args: Vec<&str> = ctx.args.iter().map(|s| s.as_str()).collect();
-
-    ctx.respond(format!("Parsed Args: `{}`", args.join("`, `")))
+    ctx.respond(format!("Parsed Args: `{}`", ctx.args.as_ref().join("`, `")))
         .await?;
     Ok(())
 }
