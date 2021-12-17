@@ -11,7 +11,10 @@ const DEFAULT_CONFIG: &str = "./config.toml";
 
 use async_trait::async_trait;
 use clap::{App, Arg};
-use robbot::{executor::Executor as _, Command as _, Context as ContextExt, Error};
+use robbot::{
+    arguments::CommandArguments, executor::Executor as _, Command as _, Context as ContextExt,
+    Error,
+};
 use robbot_core::{
     router::{find_command, parse_args},
     state::State,
@@ -69,10 +72,14 @@ async fn main() {
 
     let state = Arc::new(state);
 
+    log::info!("Loading builtin commands");
+
     builtin::init(&state);
 
     #[cfg(feature = "debug")]
     plugins::debug::init(state.clone());
+
+    log::info!("Connecting");
 
     let mut client = Client::builder(&config.token)
         .intents(gateway_intents)
@@ -107,7 +114,7 @@ impl EventHandler for Handler {
             }
         }
 
-        let mut args = parse_args(msg);
+        let mut args = CommandArguments::new(parse_args(msg));
 
         let cmd = {
             let commands = self.state.commands().get_inner();
@@ -122,7 +129,7 @@ impl EventHandler for Handler {
         let ctx = robbot_core::context::Context {
             raw_ctx: ctx.clone(),
             state: self.state.clone(),
-            args: args.iter().map(|s| s.to_string()).collect(),
+            args,
             event: message.clone(),
         };
 
