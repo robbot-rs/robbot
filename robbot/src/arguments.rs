@@ -9,9 +9,11 @@ pub trait ArgumentsExt: AsRef<[String]> {
     /// Returns the number of arguments.
     fn len(&self) -> usize;
 
+    fn get(&self, index: usize) -> Option<&String>;
+
     /// Pops and returns the first argument. Returns `None` if no
     /// arguments are avaliable.
-    fn pop(&mut self) -> Option<&String>;
+    fn pop(&mut self) -> Option<String>;
 
     /// Returns `true` if no arguments are avaliable.
     fn is_empty(&self) -> bool {
@@ -85,12 +87,16 @@ impl<'life0> ArgumentsExt for Arguments<'life0> {
         self.0.len()
     }
 
-    fn pop(&mut self) -> Option<&String> {
+    fn get(&self, index: usize) -> Option<&String> {
+        self.0.get(index)
+    }
+
+    fn pop(&mut self) -> Option<String> {
         match self.is_empty() {
             false => {
                 let elem = &self.0[0];
                 self.0 = &self.0[1..];
-                Some(elem)
+                Some(elem.to_owned())
             }
             true => None,
         }
@@ -308,11 +314,15 @@ impl ArgumentsExt for CommandArguments {
         self.owned.len() - self.num
     }
 
-    fn pop(&mut self) -> Option<&String> {
+    fn get(&self, index: usize) -> Option<&String> {
+        self.owned.get(index)
+    }
+
+    fn pop(&mut self) -> Option<String> {
         match self.owned.get(self.num) {
             Some(arg) => {
                 self.num += 1;
-                Some(arg)
+                Some(arg.to_owned())
             }
             None => None,
         }
