@@ -45,9 +45,9 @@ where
         return None;
     }
 
-    let mut command = commands.get(args.pop().unwrap())?;
+    let mut command = commands.get(&args.pop().unwrap())?;
 
-    while let Some(arg) = args.pop() {
+    while let Some(arg) = args.get(0) {
         match command.sub_commands().get(arg) {
             Some(cmd) => {
                 args.pop();
