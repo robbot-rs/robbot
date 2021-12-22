@@ -136,12 +136,10 @@ pub struct LoadedCommand {
     guild_only: bool,
     sub_commands: HashSet<Self>,
     executor: Option<Executor<MessageContext>>,
-
-    module_handle: Option<()>,
 }
 
-impl LoadedCommand {
-    fn from(command: Command, module_handle: Option<()>) -> Self {
+impl From<Command> for LoadedCommand {
+    fn from(command: Command) -> Self {
         Self {
             name: command.name,
             description: command.description,
@@ -151,10 +149,9 @@ impl LoadedCommand {
             sub_commands: command
                 .sub_commands
                 .into_iter()
-                .map(|c| LoadedCommand::from(c, module_handle))
+                .map(|c| LoadedCommand::from(c))
                 .collect(),
             executor: command.executor,
-            module_handle,
         }
     }
 }
@@ -231,7 +228,7 @@ impl CommandHandler {
     pub fn load_command(&self, command: Command, path: Option<&str>) -> Result<(), Error> {
         let cmds = self.inner.write().unwrap();
 
-        let command = LoadedCommand::from(command, None);
+        let command = LoadedCommand::from(command);
 
         let root_set = match path {
             Some(path) => {
