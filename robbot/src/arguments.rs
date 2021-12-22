@@ -63,19 +63,19 @@ impl<'life0> Arguments<'life0> {
         self.len() == 0
     }
 
-    /// Removes and returns the element at position `index`.
-    /// # Panics
-    /// Panics if `index` is out of bounds.
-    pub fn pop(&mut self) -> Option<&String> {
-        match self.is_empty() {
-            false => {
-                let elem = &self.0[0];
-                self.0 = &self.0[1..];
-                Some(elem)
-            }
-            true => None,
-        }
-    }
+    // /// Removes and returns the element at position `index`.
+    // /// # Panics
+    // /// Panics if `index` is out of bounds.
+    // pub fn pop(&mut self) -> Option<&String> {
+    //     match self.is_empty() {
+    //         false => {
+    //             let elem = &self.0[0];
+    //             self.0 = &self.0[1..];
+    //             Some(elem)
+    //         }
+    //         true => None,
+    //     }
+    // }
 
     pub fn iter(&self) -> impl Iterator<Item = &String> {
         self.0.iter()
@@ -114,6 +114,14 @@ impl<'life0> Deref for Arguments<'life0> {
 
     fn deref(&self) -> &Self::Target {
         self.0.deref()
+    }
+}
+
+impl<'life0> Iterator for Arguments<'life0> {
+    type Item = String;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.pop()
     }
 }
 
@@ -315,7 +323,7 @@ impl ArgumentsExt for CommandArguments {
     }
 
     fn get(&self, index: usize) -> Option<&String> {
-        self.owned.get(index)
+        self.owned.get(index + self.num)
     }
 
     fn pop(&mut self) -> Option<String> {
@@ -335,6 +343,14 @@ where
 {
     fn eq(&self, other: &T) -> bool {
         self.as_ref() == other.as_ref()
+    }
+}
+
+impl Iterator for CommandArguments {
+    type Item = String;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.pop()
     }
 }
 
