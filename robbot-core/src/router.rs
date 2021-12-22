@@ -10,7 +10,7 @@ where
 {
     let input = input.as_ref();
 
-    let mut args = OwnedArguments::new();
+    let mut args = Vec::new();
 
     let mut start = 0;
     let mut esc = false;
