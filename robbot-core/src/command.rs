@@ -11,6 +11,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+#[derive(Clone)]
 pub struct Command {
     pub name: String,
     pub description: String,
@@ -257,16 +258,6 @@ impl CommandHandler {
         Ok(())
     }
 
-    // /// Loads multiple commands at once. If a single command fails,
-    // /// no commands will be loaded.
-    // pub fn load_commands<I>(&self, iter: I)
-    // where
-    //     I: Iterator<Item = Command>,
-    // {
-    // }
-
-    // pub fn unload_command() {}
-
     pub fn get_command<A>(&self, args: &mut A) -> Option<LoadedCommand>
     where
         A: ArgumentsExt,
@@ -280,6 +271,35 @@ impl CommandHandler {
 
     pub fn get_inner(&self) -> Arc<RwLock<HashSet<LoadedCommand>>> {
         self.inner.clone()
+    }
+
+    /// Removes the command with the given `ident`. If a path is provided,
+    /// the path will be used to find the parent command.
+    pub fn remove_command(&self, ident: &str, path: Option<&str>) -> Result<(), Error> {
+        let mut commands = self.inner.write().unwrap();
+
+        let root = match path {
+            Some(path) => {
+                let cmd = match find_command(&commands, &mut parse_args(path).as_args()) {
+                    Some(cmd) => cmd,
+                    None => return Err(Error::InvalidPath),
+                };
+
+                &cmd.sub_commands
+            }
+            None => &mut commands,
+        };
+
+        unsafe {
+            #[allow(mutable_transmutes)]
+            let root: &mut HashSet<LoadedCommand> = std::mem::transmute(root);
+
+            if !root.remove(ident) {
+                return Err(Error::InvalidPath);
+            }
+        }
+
+        Ok(())
     }
 }
 
