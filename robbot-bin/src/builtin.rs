@@ -13,7 +13,15 @@ pub fn init(state: &State) {
     }
 }
 
-#[command(description = "Show the global help message or a help message for a command.")]
+/// The `help` command displays a list of all commands or details about
+/// a specific command. Shows a list of all commands if no arguments are
+/// given or the arguments point to a command without an executor. Shows
+/// more details about a command otherwise.
+#[command(
+    description = "Show the global help message or a help message for a command.",
+    usage = "[Path to Command]",
+    example = "uptime"
+)]
 async fn help(mut ctx: MessageContext) -> Result {
     let description = {
         let commands = ctx.state.commands().get_inner();
@@ -43,6 +51,9 @@ async fn help(mut ctx: MessageContext) -> Result {
     Ok(())
 }
 
+/// The `uptime` command displays the time since the bot last connected
+/// to the discord gateway. This usually is the same as the time since
+/// the bot was started.
 #[command(description = "Show the bot uptime.")]
 async fn uptime(ctx: MessageContext) -> Result {
     let description = {
@@ -72,6 +83,9 @@ async fn uptime(ctx: MessageContext) -> Result {
     Ok(())
 }
 
+/// The `version` command displays the current git version of the bot.
+/// The version string is loaded using the Makefile, it is not displayed
+/// in the debug version.
 #[command(description = "Show the bot version.")]
 async fn version(ctx: MessageContext) -> Result {
     #[cfg(debug_assertions)]
