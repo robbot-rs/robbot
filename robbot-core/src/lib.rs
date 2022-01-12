@@ -3,6 +3,7 @@ pub mod config;
 pub mod context;
 pub mod executor;
 pub mod module;
+pub mod permissions;
 pub mod router;
 pub mod state;
 pub mod store;
