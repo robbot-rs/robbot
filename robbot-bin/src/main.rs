@@ -72,14 +72,26 @@ async fn main() {
 
     let state = Arc::new(state);
 
-    log::info!("Loading builtin commands");
+    log::info!("[CORE] Loading builtin commands");
 
-    builtin::init(&state);
+    // Load all builtin functions.
+    if let Err(err) = builtin::init(&state) {
+        log::error!("[CORE] Failed to load builtin functions: {:?}", err);
+        log::error!("[CORE] Fatal error, exiting");
+        std::process::exit(1);
+    }
 
     #[cfg(feature = "debug")]
-    plugins::debug::init(state.clone());
+    if let Err(err) = plugins::debug::init(state.clone()) {
+        log::error!("[CORE] Failed to load debug plugin: {:?}", err);
+    }
 
-    log::info!("Connecting");
+    #[cfg(feature = "permissions")]
+    if let Err(err) = plugins::permissions::init(&state).await {
+        log::error!("[CORE] Failed to load permissions plugin: {:?}", err);
+    }
+
+    log::info!("[BOT] Connecting");
 
     let mut client = Client::builder(&config.token)
         .intents(gateway_intents)
