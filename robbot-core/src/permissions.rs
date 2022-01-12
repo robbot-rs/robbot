@@ -43,7 +43,7 @@ impl PermissionHandler {
             }
         }
 
-        return Ok(false);
+        Ok(false)
     }
 
     /// Returns `true` if the user has the given permission node.

@@ -151,7 +151,7 @@ impl From<Command> for LoadedCommand {
             sub_commands: command
                 .sub_commands
                 .into_iter()
-                .map(|c| LoadedCommand::from(c))
+                .map(LoadedCommand::from)
                 .collect(),
             executor: command.executor,
         }

@@ -110,7 +110,7 @@ async fn list(mut ctx: MessageContext) -> Result {
     let _ = ctx
         .respond(CreateMessage::new(|m| {
             m.embed(|e| {
-                e.title(format!("User Permissions"));
+                e.title("Permissions");
                 e.description(description);
             });
         }))
