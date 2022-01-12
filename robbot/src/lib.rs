@@ -21,10 +21,7 @@ pub use {
 
 pub mod prelude {
     pub use crate::{
-        bot::{
-            Error::{self, InvalidCommandUsage},
-            Result,
-        },
+        bot::{Error, Error::InvalidCommandUsage, Result},
         command::Command,
         context::Context,
         store::StoreData,
