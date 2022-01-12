@@ -1,20 +1,19 @@
 //! # Debug plugin
 //! Adds a few info commands under the debug module
 //! in debug build mode.
-use robbot::{builder::CreateMessage, command, Context, Result};
-use robbot_core::{context::MessageContext, state::State};
+use robbot::builder::CreateMessage;
+use robbot::{command, Context, Result};
+use robbot_core::context::MessageContext;
+use robbot_core::state::State;
+
 use std::{fmt::Write, sync::Arc};
 
-pub fn init(state: Arc<State>) {
-    state.commands().load_command(debug(), None).unwrap();
-    state
-        .commands()
-        .load_command(parse_args(), Some("debug"))
-        .unwrap();
-    state
-        .commands()
-        .load_command(taskqueue(), Some("debug"))
-        .unwrap();
+pub fn init(state: Arc<State>) -> Result {
+    state.commands().load_command(debug(), None)?;
+    state.commands().load_command(parse_args(), Some("debug"))?;
+    state.commands().load_command(taskqueue(), Some("debug"))?;
+
+    Ok(())
 }
 
 crate::command!(

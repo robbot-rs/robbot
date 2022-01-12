@@ -3,14 +3,19 @@ use robbot::{arguments::ArgumentsExt, builder::CreateMessage, command, Context, 
 use robbot_core::{command::Command, context::MessageContext, router::find_command, state::State};
 use serenity::utils::Color;
 
+/// The color of the embed used by all builtin commands.
 const EMBED_COLOR: Color = Color::from_rgb(0xFF, 0xA6, 0x00);
 
-pub fn init(state: &State) {
+/// Loads all builtin functions into the [`State`]. If state
+/// is new or has no commands loaded, `init` will never fail.
+pub fn init(state: &State) -> Result {
     const COMMANDS: &[fn() -> Command] = &[help, uptime, version];
 
     for f in COMMANDS {
-        state.commands().load_command(f(), None).unwrap();
+        state.commands().load_command(f(), None)?;
     }
+
+    Ok(())
 }
 
 /// The `help` command displays a list of all commands or details about
