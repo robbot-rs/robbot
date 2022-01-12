@@ -37,7 +37,7 @@ async fn add(mut ctx: MessageContext) -> Result {
                 node,
             };
 
-            ctx.state.store().insert(node).await.unwrap();
+            ctx.state.store().insert(node).await?;
         }
     } else {
         // Expect a user.
@@ -50,7 +50,7 @@ async fn add(mut ctx: MessageContext) -> Result {
                 node,
             };
 
-            ctx.state.store().insert(node).await.unwrap();
+            ctx.state.store().insert(node).await?;
         }
     }
 
@@ -85,8 +85,7 @@ async fn list(mut ctx: MessageContext) -> Result {
             .state
             .permissions()
             .role_permissions(role_id, guild_id)
-            .await
-            .unwrap();
+            .await?;
 
         for node in nodes {
             let _ = writeln!(description, "{}", node.node);
@@ -99,8 +98,7 @@ async fn list(mut ctx: MessageContext) -> Result {
             .state
             .permissions()
             .user_permissions(user_id, guild_id)
-            .await
-            .unwrap();
+            .await?;
 
         for node in nodes {
             let _ = writeln!(description, "{}", node.node);
@@ -144,7 +142,7 @@ async fn remove(mut ctx: MessageContext) -> Result {
                 .role_id(role_id)
                 .node(node);
 
-            ctx.state.store().delete(query).await.unwrap();
+            ctx.state.store().delete(query).await?;
         }
     } else {
         // Expect a user.
@@ -156,7 +154,7 @@ async fn remove(mut ctx: MessageContext) -> Result {
                 .user_id(user_id)
                 .node(node);
 
-            ctx.state.store().delete(query).await.unwrap();
+            ctx.state.store().delete(query).await?;
         }
     }
 

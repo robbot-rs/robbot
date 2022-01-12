@@ -2,7 +2,7 @@ pub mod mysql;
 
 use robbot::store::{DataQuery, Store, StoreData};
 
-use std::error;
+use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::result;
 use std::sync::{Arc, RwLock};
@@ -10,7 +10,13 @@ use std::sync::{Arc, RwLock};
 pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
-pub struct Error(Box<dyn error::Error + Send + 'static>);
+pub struct Error(Box<dyn StdError + Send + Sync + 'static>);
+
+impl AsRef<dyn StdError + Send + 'static> for Error {
+    fn as_ref(&self) -> &(dyn StdError + Send + 'static) {
+        &*self.0
+    }
+}
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -20,10 +26,16 @@ impl Display for Error {
 
 impl<T> From<T> for Error
 where
-    T: error::Error + Send + 'static,
+    T: StdError + Send + Sync + 'static,
 {
     fn from(err: T) -> Self {
         Self(Box::new(err))
+    }
+}
+
+impl From<Error> for robbot::Error {
+    fn from(err: Error) -> Self {
+        Self::Other(err.0)
     }
 }
 
@@ -66,7 +78,7 @@ where
 impl<S> MainStore<S>
 where
     S: Store + Clone,
-    S::Error: Send + 'static,
+    S::Error: Send + Sync + 'static,
 {
     pub async fn new(uri: &str) -> Result<Self> {
         let store = S::connect(uri).await?;
