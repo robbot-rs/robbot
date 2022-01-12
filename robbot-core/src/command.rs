@@ -11,6 +11,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use thiserror::Error;
+
 #[derive(Clone)]
 pub struct Command {
     pub name: String,
@@ -300,8 +302,10 @@ impl CommandHandler {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Error)]
 pub enum Error {
+    #[error("duplicate name")]
     DuplicateName,
+    #[error("invalid path")]
     InvalidPath,
 }
