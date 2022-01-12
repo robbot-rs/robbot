@@ -1,11 +1,11 @@
 pub mod mysql;
 
 use robbot::store::{DataQuery, Store, StoreData};
-use std::{
-    error,
-    fmt::{self, Display, Formatter},
-    result,
-};
+
+use std::error;
+use std::fmt::{self, Display, Formatter};
+use std::result;
+use std::sync::{Arc, RwLock};
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -32,34 +32,64 @@ pub struct MainStore<S>
 where
     S: Store,
 {
-    main: Option<S>,
+    inner: Arc<RwLock<Option<S>>>,
 }
 
 impl<S> MainStore<S>
 where
-    S: Store,
+    S: Store + Clone,
+{
+    /// Closes the inner store, resetting it to `None`.
+    pub fn close(&self) {
+        let mut inner = self.inner.write().unwrap();
+
+        *inner = None;
+    }
+
+    pub fn is_connected(&self) -> bool {
+        let inner = self.inner.read().unwrap();
+        inner.is_some()
+    }
+
+    /// Returns a new clone of the inner store.
+    ///
+    /// # Panics
+    /// Panics when the inner store is not connected.
+    fn store(&self) -> S {
+        let inner = self.inner.read().unwrap();
+        let store = inner.as_ref().unwrap();
+
+        store.clone()
+    }
+}
+
+impl<S> MainStore<S>
+where
+    S: Store + Clone,
     S::Error: Send + 'static,
 {
     pub async fn new(uri: &str) -> Result<Self> {
+        let store = S::connect(uri).await?;
+
         Ok(Self {
-            main: Some(S::connect(uri).await?),
+            inner: Arc::new(RwLock::new(Some(store))),
         })
     }
 
     pub async fn connect(&mut self, uri: &str) -> Result<()> {
-        self.main = Some(S::connect(uri).await?);
-        Ok(())
-    }
+        let store = S::connect(uri).await?;
 
-    pub fn close(&mut self) {
-        self.main = None;
+        let mut inner = self.inner.write().unwrap();
+        *inner = Some(store);
+
+        Ok(())
     }
 
     pub async fn create<T>(&self) -> Result<()>
     where
         T: StoreData<S> + Default + Send + Sync + 'static,
     {
-        self.main_store().create::<T>().await?;
+        self.store().create::<T>().await?;
         Ok(())
     }
 
@@ -68,7 +98,7 @@ where
         T: StoreData<S> + Default + Send + Sync + 'static,
         Q: DataQuery<T, S> + Send,
     {
-        self.main_store().delete(query).await?;
+        self.store().delete(query).await?;
         Ok(())
     }
 
@@ -77,7 +107,7 @@ where
         T: StoreData<S> + Send + Sync + Default + 'static,
         Q: DataQuery<T, S> + Send,
     {
-        let data = self.main_store().get(query).await?;
+        let data = self.store().get(query).await?;
         Ok(data)
     }
 
@@ -85,7 +115,7 @@ where
     where
         T: StoreData<S> + Send + Sync + Default + 'static,
     {
-        let data = self.main_store().get_all().await?;
+        let data = self.store().get_all().await?;
         Ok(data)
     }
 
@@ -94,7 +124,7 @@ where
         T: StoreData<S> + Send + Sync + Default + 'static,
         Q: DataQuery<T, S> + Send + Sync,
     {
-        let data = self.main_store().get_one(query).await?;
+        let data = self.store().get_one(query).await?;
         Ok(data)
     }
 
@@ -102,16 +132,8 @@ where
     where
         T: StoreData<S> + Send + Sync + 'static,
     {
-        self.main_store().insert(data).await?;
+        self.store().insert(data).await?;
         Ok(())
-    }
-
-    fn main_store(&self) -> &S {
-        self.main.as_ref().unwrap()
-    }
-
-    pub fn is_connected(&self) -> bool {
-        self.main.is_some()
     }
 }
 
@@ -120,6 +142,8 @@ where
     S: Store,
 {
     fn default() -> Self {
-        Self { main: None }
+        Self {
+            inner: Arc::new(RwLock::new(None)),
+        }
     }
 }

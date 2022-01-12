@@ -38,6 +38,7 @@ impl From<sqlx::Error> for Error {
 }
 
 /// A Store using the MySQL database.
+#[derive(Clone)]
 pub struct MysqlStore {
     pool: MySqlPool,
 }
