@@ -15,7 +15,12 @@ use serenity::{
 };
 use std::sync::Arc;
 
+/// An alias for `Context<Message>`. This context is received by
+/// command handlers.
 pub type MessageContext = Context<Message>;
+
+/// An alias for `Context<()>`. This context is received by tasks.
+pub type TaskContext = Context<()>;
 
 #[derive(Clone)]
 pub struct Context<T> {
