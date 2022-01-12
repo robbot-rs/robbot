@@ -318,7 +318,6 @@ impl AsRef<[String]> for CommandArguments {
 
 impl ArgumentsExt for CommandArguments {
     fn len(&self) -> usize {
-        println!("{:?}", self);
         self.owned.len() - self.num
     }
 
