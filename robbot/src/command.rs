@@ -20,6 +20,13 @@ pub trait Command: Sized + Hash + Eq + Borrow<str> {
     /// guilds. Note that if the command is guild-only all
     /// subcommands will infer the guild-only property.
     fn guild_only(&self) -> bool;
+    /// Returns a list of all permissions required to run the
+    /// command. If a user does not have the required permissions,
+    /// he is rejected. Admins defined in the config file are always
+    /// permitted.
+    /// Note: User and role permissions are on a per guild basis, meaning that
+    /// only guild-only commands are checked.
+    fn permissions(&self) -> &[String];
     fn sub_commands(&self) -> &HashSet<Self>;
     fn executor(&self) -> Option<&Self::Executor>;
 }

@@ -20,6 +20,9 @@ pub struct Command {
     pub usage: String,
     pub example: String,
     pub guild_only: bool,
+    /// A list of permissions required to run the command.
+    /// Setting this on a non-guild-only command has no effect.
+    pub permissions: Vec<String>,
     pub sub_commands: HashSet<Self>,
     pub executor: Option<Executor<MessageContext>>,
 }
@@ -34,6 +37,7 @@ impl Command {
             guild_only: false,
             executor: None,
             sub_commands: HashSet::new(),
+            permissions: Vec::new(),
         }
     }
 
@@ -120,6 +124,10 @@ impl CommandExt for Command {
         self.guild_only
     }
 
+    fn permissions(&self) -> &[String] {
+        &self.permissions
+    }
+
     fn executor(&self) -> Option<&Self::Executor> {
         self.executor.as_ref()
     }
@@ -138,6 +146,7 @@ pub struct LoadedCommand {
     guild_only: bool,
     sub_commands: HashSet<Self>,
     executor: Option<Executor<MessageContext>>,
+    permissions: Vec<String>,
 }
 
 impl From<Command> for LoadedCommand {
@@ -154,6 +163,7 @@ impl From<Command> for LoadedCommand {
                 .map(LoadedCommand::from)
                 .collect(),
             executor: command.executor,
+            permissions: command.permissions,
         }
     }
 }
@@ -206,6 +216,10 @@ impl CommandExt for LoadedCommand {
 
     fn sub_commands(&self) -> &HashSet<Self> {
         &self.sub_commands
+    }
+
+    fn permissions(&self) -> &[String] {
+        &self.permissions
     }
 
     fn executor(&self) -> Option<&Self::Executor> {

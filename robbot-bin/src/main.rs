@@ -108,7 +108,7 @@ pub struct Handler {
 
 #[async_trait]
 impl EventHandler for Handler {
-    async fn message(&self, ctx: Context, message: Message) {
+    async fn message(&self, raw_ctx: Context, message: Message) {
         let message = robbot::model::Message::from(message);
 
         let msg = match message.content.strip_prefix('!') {
@@ -139,7 +139,7 @@ impl EventHandler for Handler {
         };
 
         let ctx = robbot_core::context::Context {
-            raw_ctx: ctx.clone(),
+            raw_ctx: raw_ctx.clone(),
             state: self.state.clone(),
             args,
             event: message.clone(),
@@ -153,6 +153,44 @@ impl EventHandler for Handler {
                 .await;
 
             return;
+        }
+
+        #[cfg(feature = "permissions")]
+        {
+            // Get the message author.
+            let member = {
+                // Try member from cache.
+                match raw_ctx
+                    .cache
+                    .member(message.guild_id.unwrap(), message.author.id)
+                    .await
+                {
+                    Some(member) => member,
+                    None => raw_ctx
+                        .http
+                        .get_member(message.guild_id.unwrap().0, message.author.id.0)
+                        .await
+                        .unwrap(),
+                }
+            };
+
+            for permission in cmd.permissions() {
+                let has_permission = self
+                    .state
+                    .permissions()
+                    .has_permission(&member, permission)
+                    .await
+                    .unwrap();
+
+                // User is not allowed to run the command.
+                if !has_permission {
+                    let _ = ctx
+                        .respond(":no_entry_sign: You are not allowed to run this command.")
+                        .await;
+
+                    return;
+                }
+            }
         }
 
         match cmd.executor() {
