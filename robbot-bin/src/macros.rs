@@ -23,10 +23,10 @@ macro_rules! command {
 #[macro_export]
 macro_rules! task {
     ($name:ident, $schedule:expr, $executor:expr $(,)?) => {
-        fn $name() -> $crate::core::task::Task {
+        fn $name() -> robbot_core::task::Task {
             use ::robbot::executor::Executor as _;
 
-            $crate::core::task::Task {
+            robbot_core::task::Task {
                 name: stringify!($name).to_owned(),
                 schedule: $schedule,
                 executor: robbot_core::executor::Executor::from_fn($executor),
