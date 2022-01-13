@@ -15,6 +15,12 @@ use serenity::{
 };
 use std::sync::Arc;
 
+use robbot::builder::EditMember;
+
+use serenity::model::guild::Member;
+use serenity::model::id::{GuildId, UserId};
+use serenity::utils::hashmap_to_json_map;
+
 /// An alias for `Context<Message>`. This context is received by
 /// command handlers.
 pub type MessageContext = Context<Message>;
@@ -79,6 +85,27 @@ where
             .create_reaction(channel_id.0, message_id.0, &reaction.into())
             .await?;
         Ok(())
+    }
+
+    async fn edit_member<S>(
+        &self,
+        guild_id: GuildId,
+        user_id: UserId,
+        edit_member: S,
+    ) -> Result<Member, Self::Error>
+    where
+        S: Into<EditMember> + Send,
+    {
+        let mut builder = serenity::builder::EditMember::default();
+        edit_member.into().fill_builder(&mut builder);
+
+        let member = self
+            .raw_ctx
+            .http
+            .edit_member(guild_id.0, user_id.0, &hashmap_to_json_map(builder.0))
+            .await?;
+
+        Ok(member)
     }
 }
 

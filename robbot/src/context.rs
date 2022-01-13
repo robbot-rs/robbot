@@ -1,13 +1,17 @@
-use crate::{builder::CreateMessage, model::Message};
+use crate::builder::{CreateMessage, EditMember};
+use crate::model::Message;
+
+use serenity::model::channel::ReactionType;
+use serenity::model::guild::Member;
+use serenity::model::id::{ChannelId, GuildId, MessageId, UserId};
+
 use async_trait::async_trait;
-use serenity::model::{
-    channel::ReactionType,
-    id::{ChannelId, MessageId},
-};
 
 #[async_trait]
 pub trait Context {
     type Error;
+
+    // CHANNEL
 
     /// Create a new message a text channel.
     async fn send_message<T>(
@@ -27,6 +31,21 @@ pub trait Context {
     ) -> Result<(), Self::Error>
     where
         T: Into<ReactionType> + Send;
+
+    // GUILD
+
+    /// Modifies properties of a guild member. Only modified
+    /// properties are changed.
+    async fn edit_member<T>(
+        &self,
+        guild_id: GuildId,
+        user_id: UserId,
+        edit_member: T,
+    ) -> Result<Member, Self::Error>
+    where
+        T: Into<EditMember> + Send;
+
+    // CHANNEL
 
     /// Respond to the message author. Returns the newly created message.
     async fn respond<T>(&self, message: T) -> Result<Message, Self::Error>

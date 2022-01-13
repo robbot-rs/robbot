@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use serenity::utils::Color;
 use std::convert::{From, Into};
 
+use serenity::model::id::{ChannelId, RoleId};
+
 /// [`CreateMessage`] is used to construct a new
 /// message.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -127,6 +129,92 @@ impl CreateEmbed {
 
         if let Some(color) = self.color {
             builder.color(color);
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct EditMember {
+    deafen: Option<bool>,
+    mute: Option<bool>,
+    nickname: Option<String>,
+    roles: Option<Vec<RoleId>>,
+    voice_channel: Option<ChannelId>,
+    voice_disconnect: Option<bool>,
+}
+
+impl EditMember {
+    pub fn new<F>(f: F) -> Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        let mut builder = Self::default();
+        f(&mut builder);
+        builder
+    }
+
+    pub fn deafen(&mut self, deafen: bool) -> &mut Self {
+        self.deafen = Some(deafen);
+        self
+    }
+
+    pub fn mute(&mut self, mute: bool) -> &mut Self {
+        self.mute = Some(mute);
+        self
+    }
+
+    pub fn nickname<T>(&mut self, nickname: T) -> &mut Self
+    where
+        T: ToString,
+    {
+        self.nickname = Some(nickname.to_string());
+        self
+    }
+
+    pub fn roles<I, T>(&mut self, roles: I) -> &mut Self
+    where
+        I: IntoIterator<Item = T>,
+        T: AsRef<RoleId>,
+    {
+        self.roles = Some(roles.into_iter().map(|role| *role.as_ref()).collect());
+        self
+    }
+
+    pub fn voice_channel(&mut self, channel_id: ChannelId) -> &mut Self {
+        self.voice_disconnect = None;
+        self.voice_channel = Some(channel_id);
+        self
+    }
+
+    pub fn voice_disconnect(&mut self) -> &mut Self {
+        self.voice_channel = None;
+        self.voice_disconnect = Some(true);
+        self
+    }
+
+    pub fn fill_builder(self, builder: &mut serenity::builder::EditMember) {
+        if let Some(deafen) = self.deafen {
+            builder.deafen(deafen);
+        }
+
+        if let Some(mute) = self.mute {
+            builder.mute(mute);
+        }
+
+        if let Some(nickname) = self.nickname {
+            builder.nickname(nickname);
+        }
+
+        if let Some(roles) = self.roles {
+            builder.roles(roles);
+        }
+
+        if let Some(voice_channel) = self.voice_channel {
+            builder.voice_channel(voice_channel);
+        }
+
+        if self.voice_disconnect.is_some() {
+            builder.disconnect_member();
         }
     }
 }
