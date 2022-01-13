@@ -1,3 +1,5 @@
+use super::permissions::MANAGE;
+
 use robbot_core::permissions::{RolePermission, UserPermission};
 
 use robbot::arguments::ArgumentsExt;
@@ -14,7 +16,8 @@ pub(super) const COMMANDS: &[fn() -> robbot_core::command::Command] = &[add, lis
     description = "Add new permissions to a user or role.",
     usage = "<@User> <Permission...>",
     example = "@Robbbbbbb permissions.manage",
-    guild_only = true
+    guild_only = true,
+    permissions = [MANAGE],
 )]
 async fn add(mut ctx: MessageContext) -> Result {
     let id = ctx.args.pop().ok_or(Error::InvalidCommandUsage)?;
@@ -68,7 +71,8 @@ async fn add(mut ctx: MessageContext) -> Result {
     description = "List all permissions of a user or role.",
     usage = "<@User>",
     example = "@Robbbbbbb",
-    guild_only = true
+    guild_only = true,
+    permissions = [MANAGE],
 )]
 async fn list(mut ctx: MessageContext) -> Result {
     let id = ctx.args.pop().ok_or(Error::InvalidCommandUsage)?;
@@ -120,7 +124,8 @@ async fn list(mut ctx: MessageContext) -> Result {
     description = "Remove permissions from a user.",
     usage = "<@User> <Permission...>",
     example = "@Robbbbbbb",
-    guild_only = true
+    guild_only = true,
+    permissions = [MANAGE],
 )]
 async fn remove(mut ctx: MessageContext) -> Result {
     let id = ctx.args.pop().ok_or(Error::InvalidCommandUsage)?;

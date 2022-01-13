@@ -22,7 +22,7 @@ impl PermissionHandler {
     /// Returns `true` if the member effectively has the permission node.
     pub async fn has_permission(
         &self,
-        member: Member,
+        member: &Member,
         node: impl AsRef<str>,
     ) -> Result<bool, Error> {
         // Check the user for permissions.
@@ -34,9 +34,9 @@ impl PermissionHandler {
         }
 
         // Check all roles for permissions.
-        for role in member.roles {
+        for role in &member.roles {
             if self
-                .role_has_permission(role, member.guild_id, node.as_ref())
+                .role_has_permission(*role, member.guild_id, node.as_ref())
                 .await?
             {
                 return Ok(true);

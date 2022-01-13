@@ -36,5 +36,13 @@ where
         }
     }
 
+    if !command.permissions().is_empty() {
+        let _ = writeln!(
+            string,
+            "**Required Permissions**: `{}`",
+            command.permissions().join("`,`")
+        );
+    }
+
     string
 }

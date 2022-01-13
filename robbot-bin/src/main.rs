@@ -4,6 +4,7 @@ mod help;
 mod logger;
 mod macros;
 mod model;
+mod permissions;
 mod plugins;
 
 /// Path of the default config.toml file.
@@ -157,39 +158,15 @@ impl EventHandler for Handler {
 
         #[cfg(feature = "permissions")]
         {
-            // Get the message author.
-            let member = {
-                // Try member from cache.
-                match raw_ctx
-                    .cache
-                    .member(message.guild_id.unwrap(), message.author.id)
-                    .await
-                {
-                    Some(member) => member,
-                    None => raw_ctx
-                        .http
-                        .get_member(message.guild_id.unwrap().0, message.author.id.0)
-                        .await
-                        .unwrap(),
-                }
-            };
+            if !permissions::has_permission(&ctx, cmd.permissions())
+                .await
+                .unwrap()
+            {
+                let _ = ctx
+                    .respond(":no_entry_sign: You are not allowed to run this command.")
+                    .await;
 
-            for permission in cmd.permissions() {
-                let has_permission = self
-                    .state
-                    .permissions()
-                    .has_permission(&member, permission)
-                    .await
-                    .unwrap();
-
-                // User is not allowed to run the command.
-                if !has_permission {
-                    let _ = ctx
-                        .respond(":no_entry_sign: You are not allowed to run this command.")
-                        .await;
-
-                    return;
-                }
+                return;
             }
         }
 

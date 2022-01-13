@@ -1,4 +1,5 @@
 mod commands;
+mod permissions;
 
 use robbot::Result;
 use robbot_core::permissions::{RolePermission, UserPermission};

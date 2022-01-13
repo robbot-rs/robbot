@@ -73,6 +73,14 @@ impl Command {
         self.guild_only = guild_only;
     }
 
+    pub fn set_permissions<I, T>(&mut self, permissions: I)
+    where
+        I: IntoIterator<Item = T>,
+        T: ToString,
+    {
+        self.permissions = permissions.into_iter().map(|n| n.to_string()).collect();
+    }
+
     pub fn executor(&mut self, executor: Option<Executor<MessageContext>>) {
         self.executor = executor;
     }
