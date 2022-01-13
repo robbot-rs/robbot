@@ -212,7 +212,7 @@ impl Display for Query {
             Self::Delete {
                 table_name,
                 conditions,
-            } => write!(f, "DELETE FROM {} {}", table_name, conditions),
+            } => write!(f, "DELETE FROM {}{}", table_name, conditions),
             Self::Insert {
                 table_name,
                 columns,
@@ -230,7 +230,7 @@ impl Display for Query {
                 conditions,
             } => write!(
                 f,
-                "SELECT {} FROM {} {}",
+                "SELECT {} FROM {}{}",
                 columns.join(","),
                 table_name,
                 conditions
@@ -293,7 +293,7 @@ impl Display for ConditionsExpr {
             return Ok(());
         }
 
-        write!(f, "WHERE {}", self.conditions[0])?;
+        write!(f, " WHERE {}", self.conditions[0])?;
 
         let iter = self.conditions.iter().skip(1);
 
@@ -434,7 +434,7 @@ impl MysqlSerializer {
                 Query::Create { ref mut values, .. } => values.push(val),
                 Query::Delete { .. } => unreachable!(),
                 Query::Insert { ref mut values, .. } => values.push(val),
-                Query::Select { .. } => unreachable!(),
+                Query::Select { .. } => (),
             },
         }
     }
@@ -971,6 +971,50 @@ mod tests {
                 ]
             }
         );
+
+        let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Select);
+        serializer.serialize_field("id", &0).unwrap();
+        serializer.serialize_field("name", &0).unwrap();
+
+        assert_eq!(
+            serializer.query,
+            Query::Select {
+                table_name: String::from("test"),
+                columns: vec![String::from("id"), String::from("name")],
+                conditions: ConditionsExpr {
+                    conditions: Vec::new()
+                }
+            }
+        );
+
+        let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Select);
+        serializer.serialize_field("id", &0).unwrap();
+        serializer.serialize_field("name", &0).unwrap();
+        serializer.enable_condition();
+        serializer.serialize_field("id", &3).unwrap();
+        serializer.serialize_field("name", "abc").unwrap();
+
+        assert_eq!(
+            serializer.query,
+            Query::Select {
+                table_name: String::from("test"),
+                columns: vec![String::from("id"), String::from("name")],
+                conditions: ConditionsExpr {
+                    conditions: vec![
+                        Condition {
+                            column: String::from("id"),
+                            value: String::from("3"),
+                            comparator: Comparator::Eq,
+                        },
+                        Condition {
+                            column: String::from("name"),
+                            value: String::from("'abc'"),
+                            comparator: Comparator::Eq,
+                        },
+                    ],
+                },
+            }
+        );
     }
 
     #[test]
@@ -1021,5 +1065,23 @@ mod tests {
             serializer.into_sql(),
             "INSERT INTO test (id,name) VALUES (3,345)"
         );
+
+        let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Select);
+        serializer.serialize_field("id", &0).unwrap();
+        serializer.serialize_field("name", &0).unwrap();
+
+        assert_eq!(serializer.into_sql(), "SELECT id,name FROM test");
+
+        let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Select);
+        serializer.serialize_field("id", &0).unwrap();
+        serializer.serialize_field("name", &0).unwrap();
+        serializer.enable_condition();
+        serializer.serialize_field("id", &3).unwrap();
+        serializer.serialize_field("name", "abc").unwrap();
+
+        assert_eq!(
+            serializer.into_sql(),
+            "SELECT id,name FROM test WHERE id = 3 AND name = 'abc'"
+        )
     }
 }
