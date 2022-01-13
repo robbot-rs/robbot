@@ -9,3 +9,18 @@ pub mod permissions;
 
 // pub mod customcommands;
 // pub mod temprole;
+
+use robbot::Result;
+use robbot_core::state::State;
+
+use std::sync::Arc;
+
+pub async fn init(state: Arc<State>) -> Result {
+    #[cfg(feature = "debug")]
+    debug::init(&state).await?;
+
+    #[cfg(feature = "permissions")]
+    permissions::init(&state).await?;
+
+    Ok(())
+}

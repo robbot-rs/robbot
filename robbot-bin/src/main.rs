@@ -82,14 +82,8 @@ async fn main() {
         std::process::exit(1);
     }
 
-    #[cfg(feature = "debug")]
-    if let Err(err) = plugins::debug::init(state.clone()) {
-        log::error!("[CORE] Failed to load debug plugin: {:?}", err);
-    }
-
-    #[cfg(feature = "permissions")]
-    if let Err(err) = plugins::permissions::init(&state).await {
-        log::error!("[CORE] Failed to load permissions plugin: {:?}", err);
+    if let Err(err) = plugins::init(state.clone()).await {
+        log::error!("[CORE] Failed to load plugin: {:?}", err);
     }
 
     log::info!("[BOT] Connecting");

@@ -6,9 +6,9 @@ use robbot::{command, Context, Result};
 use robbot_core::context::MessageContext;
 use robbot_core::state::State;
 
-use std::{fmt::Write, sync::Arc};
+use std::fmt::Write;
 
-pub fn init(state: Arc<State>) -> Result {
+pub async fn init(state: &State) -> Result {
     state.commands().load_command(debug(), None)?;
     state.commands().load_command(parse_args(), Some("debug"))?;
     state.commands().load_command(taskqueue(), Some("debug"))?;
