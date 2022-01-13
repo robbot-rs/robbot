@@ -24,7 +24,7 @@ mod snowflake {
     pub struct Snowflake(pub u64);
 
     impl Snowflake {
-        fn from_parts(timestamp: u64, instance: u64, sequence: u64) -> Self {
+        const fn from_parts(timestamp: u64, instance: u64, sequence: u64) -> Self {
             let timestamp = (timestamp << 22) & BITMASK_TIMESTAMP;
             let instance = (instance << 12) & BITMASK_INSTANCE;
 
@@ -32,17 +32,17 @@ mod snowflake {
         }
 
         /// Returns the timestamp component of the `Snowflake`.
-        pub fn timestamp(&self) -> u64 {
+        pub const fn timestamp(&self) -> u64 {
             (self.0 & BITMASK_TIMESTAMP) >> 22
         }
 
         /// Returns the instance component of the `Snowflake`.
-        pub fn instance(&self) -> u64 {
+        pub const fn instance(&self) -> u64 {
             (self.0 & BITMASK_INSTANCE) >> 12
         }
 
         /// Returns the sequence component of the `Snowflake`.
-        pub fn sequence(&self) -> u64 {
+        pub const fn sequence(&self) -> u64 {
             self.0 & BITMASK_SEQUENCE
         }
     }
@@ -59,7 +59,7 @@ mod snowflake {
         ///
         /// Note: If the `instance_id` value exceeds the maximum of
         /// 1023 (2^10 - 1), `None` is returned.
-        pub fn new(instance: u16) -> Option<Self> {
+        pub const fn new(instance: u16) -> Option<Self> {
             if instance > INSTANCE_MAX as u16 {
                 None
             } else {
@@ -72,7 +72,7 @@ mod snowflake {
         ///
         /// Note: The caller must guarantee that `instance_id` does
         /// not exceed the maximum value of 1023 (2^10 -1).
-        pub fn new_unchecked(instance: u16) -> Self {
+        pub const fn new_unchecked(instance: u16) -> Self {
             Self {
                 instance,
                 sequence: 0,
