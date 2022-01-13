@@ -79,8 +79,8 @@ impl Store for MysqlStore {
         let table_name = T::resource_name();
 
         let mut serializer = MysqlSerializer::new(table_name, QueryKind::Delete);
+        serializer.enable_condition();
 
-        serializer.target_where = true;
         query.serialize(&mut serializer).unwrap();
 
         sqlx::query(&serializer.into_sql())
@@ -102,7 +102,7 @@ impl Store for MysqlStore {
 
         data.serialize(&mut serializer).unwrap();
 
-        serializer.target_where = true;
+        serializer.enable_condition();
         query.serialize(&mut serializer).unwrap();
 
         let sql = serializer.into_sql();
@@ -154,7 +154,7 @@ impl Store for MysqlStore {
 
         data.serialize(&mut serializer).unwrap();
 
-        serializer.target_where = true;
+        serializer.enable_condition();
         query.serialize(&mut serializer).unwrap();
 
         let sql = serializer.into_sql();
@@ -184,6 +184,7 @@ impl Store for MysqlStore {
 }
 
 /// Type of the sql query being built.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum QueryKind {
     Create,
     Delete,
@@ -191,125 +192,287 @@ enum QueryKind {
     Select,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Query {
+    Create {
+        table_name: String,
+        columns: Vec<String>,
+        /// Type and attributes
+        values: Vec<String>,
+    },
+    Delete {
+        table_name: String,
+        conditions: ConditionsExpr,
+    },
+    Insert {
+        table_name: String,
+        columns: Vec<String>,
+        values: Vec<String>,
+    },
+    Select {
+        table_name: String,
+        columns: Vec<String>,
+        conditions: ConditionsExpr,
+    },
+}
+
+impl Display for Query {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::Create {
+                table_name,
+                columns,
+                values,
+            } => write!(
+                f,
+                "CREATE TABLE IF NOT EXISTS {} ({})",
+                table_name,
+                columns
+                    .iter()
+                    .zip(values)
+                    .map(|(column, value)| format!("{} {}", column, value))
+                    .collect::<Vec<String>>()
+                    .join(",")
+            ),
+            Self::Delete {
+                table_name,
+                conditions,
+            } => write!(f, "DELETE FROM {} {}", table_name, conditions),
+            Self::Insert {
+                table_name,
+                columns,
+                values,
+            } => write!(
+                f,
+                "INSERT INTO {} ({}) VALUES ({})",
+                table_name,
+                columns.join(","),
+                values.join(",")
+            ),
+            Self::Select {
+                table_name,
+                columns,
+                conditions,
+            } => write!(
+                f,
+                "SELECT {} FROM {} {}",
+                columns.join(","),
+                table_name,
+                conditions
+            ),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+enum Comparator {
+    /// The equality comparator `=`.
+    Eq,
+    // /// The not equal comparator `!=`.
+    // Ne,
+    // /// The greater than comparator `>`.
+    // Gt,
+    // /// The greater than or equal comparator `>=`.
+    // Ge,
+    // /// The less than comparator `<`.
+    // Lt,
+    // /// The less than or equal comparator `<=`.
+    // Le,
+}
+
+impl Display for Comparator {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let string = match self {
+            Self::Eq => "=",
+            // Self::Ne => "!=",
+            // Self::Gt => ">",
+            // Self::Ge => ">=",
+            // Self::Lt => "<",
+            // Self::Le => "<=",
+        };
+
+        write!(f, "{}", string)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ConditionsExpr {
+    conditions: Vec<Condition>,
+}
+
+impl ConditionsExpr {
+    fn new() -> Self {
+        Self {
+            conditions: Vec::new(),
+        }
+    }
+
+    fn push(&mut self, condition: Condition) {
+        self.conditions.push(condition);
+    }
+}
+
+impl Display for ConditionsExpr {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        if self.conditions.is_empty() {
+            return Ok(());
+        }
+
+        write!(f, "WHERE {}", self.conditions[0])?;
+
+        let iter = self.conditions.iter().skip(1);
+
+        for condition in iter {
+            write!(f, " AND {}", condition)?;
+        }
+
+        Ok(())
+    }
+}
+
+/// A single SQL filtering condition.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Condition {
+    column: String,
+    value: String,
+    comparator: Comparator,
+}
+
+impl Condition {
+    fn new() -> Self {
+        Self {
+            column: String::new(),
+            value: String::new(),
+            comparator: Comparator::Eq,
+        }
+    }
+}
+
+impl Display for Condition {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{} {} {}", self.column, self.comparator, self.value)
+    }
+}
+
 /// A [`Serializer`] for building SQL queries for use
 /// with [`MysqlStore`].
 pub struct MysqlSerializer {
-    table_name: String,
-    kind: QueryKind,
-    cols: Vec<String>,
-    vals: Vec<String>,
-    /// Conditions
-    where_cols: Vec<String>,
-    where_vals: Vec<String>,
-    /// Whether new serialized values should be targeted
-    /// as the where statement.
-    target_where: bool,
+    query: Query,
+    condition: Option<Condition>,
+    // kind: QueryKind,
+    // cols: Vec<String>,
+    // vals: Vec<String>,
+    // /// Conditions
+    // where_cols: Vec<String>,
+    // where_vals: Vec<String>,
+    // /// Whether new serialized values should be targeted
+    // /// as the where statement.
+    // target_where: bool
 }
 
 impl MysqlSerializer {
     fn new(table_name: String, kind: QueryKind) -> Self {
         Self {
-            table_name,
-            kind,
-            cols: Vec::new(),
-            vals: Vec::new(),
-            where_cols: Vec::new(),
-            where_vals: Vec::new(),
-            target_where: false,
+            query: match kind {
+                QueryKind::Create => Query::Create {
+                    table_name,
+                    columns: Vec::new(),
+                    values: Vec::new(),
+                },
+                QueryKind::Delete => Query::Delete {
+                    table_name,
+                    conditions: ConditionsExpr::new(),
+                },
+                QueryKind::Insert => Query::Insert {
+                    table_name,
+                    columns: Vec::new(),
+                    values: Vec::new(),
+                },
+                QueryKind::Select => Query::Select {
+                    table_name,
+                    columns: Vec::new(),
+                    conditions: ConditionsExpr::new(),
+                },
+            },
+            condition: None,
         }
     }
 
+    /// Writes a column name into the query. The usage depends on the
+    /// type of the query. If the condition section of the query is reached,
+    /// the column is instead used in the conditional expression.
     fn write_column<T>(&mut self, column: T)
     where
         T: ToString,
     {
-        match self.target_where {
-            false => self.cols.push(column.to_string()),
-            true => self.where_cols.push(column.to_string()),
+        let val = column.to_string();
+
+        match &mut self.condition {
+            Some(ref mut condition) => condition.column = val,
+            None => match &mut self.query {
+                Query::Create {
+                    ref mut columns, ..
+                } => columns.push(val),
+                Query::Delete { .. } => unreachable!(),
+                Query::Insert {
+                    ref mut columns, ..
+                } => columns.push(val),
+                Query::Select {
+                    ref mut columns, ..
+                } => columns.push(val),
+            },
         }
     }
 
-    fn write_value<T>(&mut self, val: T)
+    /// Writes a value into the query. The usage depends on the type of the
+    /// query. If the condition section of the query is reached, the value
+    /// is instead used in the conditional expression, finalizing the conditional
+    /// expression and opening a new one.
+    fn write_value<T>(&mut self, value: T)
     where
         T: ToString,
     {
-        match self.target_where {
-            false => self.vals.push(val.to_string()),
-            true => self.where_vals.push(val.to_string()),
+        let val = value.to_string();
+
+        match &mut self.condition {
+            Some(ref mut condition) => {
+                condition.value = val;
+
+                let condition = self.condition.take().unwrap();
+
+                // Push the complete condition to the query.
+                match &mut self.query {
+                    Query::Create { .. } => unreachable!(),
+                    Query::Delete {
+                        ref mut conditions, ..
+                    } => conditions.push(condition),
+                    Query::Insert { .. } => unreachable!(),
+                    Query::Select {
+                        ref mut conditions, ..
+                    } => conditions.push(condition),
+                }
+
+                // Create a new empty condition.
+                self.condition = Some(Condition::new());
+            }
+            None => match &mut self.query {
+                Query::Create { ref mut values, .. } => values.push(val),
+                Query::Delete { .. } => unreachable!(),
+                Query::Insert { ref mut values, .. } => values.push(val),
+                Query::Select { .. } => unreachable!(),
+            },
         }
     }
 
     fn into_sql(self) -> String {
-        match self.kind {
-            QueryKind::Create => {
-                if self.cols.len() != self.vals.len() {
-                    panic!("Mismatched number of cols and vals");
-                }
+        format!("{}", self.query)
+    }
 
-                let mut values = Vec::new();
-
-                for i in 0..self.cols.len() {
-                    values.push(format!("{} {}", self.cols[i], self.vals[i]));
-                }
-
-                format!(
-                    "CREATE TABLE IF NOT EXISTS {} ({})",
-                    self.table_name,
-                    values.join(", ")
-                )
-            }
-            QueryKind::Delete => {
-                let mut filter = String::new();
-                if !self.where_cols.is_empty() {
-                    if self.where_cols.len() != self.where_vals.len() {
-                        panic!("Mismatched number of cols and vals");
-                    }
-
-                    let mut vals = Vec::new();
-                    for i in 0..self.where_cols.len() {
-                        vals.push(format!("{} = {}", self.where_cols[i], self.where_vals[i]));
-                    }
-
-                    filter = format!(" WHERE {}", vals.join(" AND "));
-                }
-
-                format!("DELETE FROM {}{}", self.table_name, filter)
-            }
-            QueryKind::Insert => {
-                if self.cols.len() != self.vals.len() {
-                    panic!("Mismatched number of cols and vals");
-                }
-
-                format!(
-                    "INSERT INTO {} ({}) VALUES ({})",
-                    self.table_name,
-                    self.cols.join(", "),
-                    self.vals.join(", ")
-                )
-            }
-            QueryKind::Select => {
-                let mut filter = String::new();
-                if !self.where_cols.is_empty() {
-                    if self.where_cols.len() != self.where_vals.len() {
-                        panic!("Mismatched number of cols and vals");
-                    }
-
-                    let mut vals = Vec::new();
-                    for i in 0..self.where_cols.len() {
-                        vals.push(format!("{} = {}", self.where_cols[i], self.where_vals[i]));
-                    }
-
-                    filter = format!(" WHERE {}", vals.join(" AND "));
-                }
-
-                format!(
-                    "SELECT {} FROM {}{}",
-                    self.cols.join(", "),
-                    self.table_name,
-                    filter
-                )
-            }
-        }
+    /// Mark the [`MysqlSerializer`] to interpret any following
+    /// serialized values to be used in the conditional section
+    /// of the SQL statement.
+    fn enable_condition(&mut self) {
+        self.condition = Some(Condition::new());
     }
 }
 
@@ -317,20 +480,21 @@ impl Serializer<MysqlStore> for MysqlSerializer {
     type Error = Error;
 
     fn serialize_bool(&mut self, v: bool) -> Result<(), Self::Error> {
-        self.write_value(match self.kind {
-            QueryKind::Create => "BOOLEAN",
+        let val = match self.query {
+            Query::Create { .. } => "BOOLEAN",
             _ => match v {
                 false => "FALSE",
                 true => "TRUE",
             },
-        });
+        };
 
+        self.write_value(val);
         Ok(())
     }
 
     fn serialize_i8(&mut self, v: i8) -> Result<(), Self::Error> {
-        match self.kind {
-            QueryKind::Create => self.write_value("TINYINT"),
+        match self.query {
+            Query::Create { .. } => self.write_value("TINYINT"),
             _ => self.write_value(v),
         }
 
@@ -338,8 +502,8 @@ impl Serializer<MysqlStore> for MysqlSerializer {
     }
 
     fn serialize_i16(&mut self, v: i16) -> Result<(), Self::Error> {
-        match self.kind {
-            QueryKind::Create => self.write_value("SMALLINT"),
+        match self.query {
+            Query::Create { .. } => self.write_value("SMALLINT"),
             _ => self.write_value(v),
         }
 
@@ -347,8 +511,8 @@ impl Serializer<MysqlStore> for MysqlSerializer {
     }
 
     fn serialize_i32(&mut self, v: i32) -> Result<(), Self::Error> {
-        match self.kind {
-            QueryKind::Create => self.write_value("INT"),
+        match self.query {
+            Query::Create { .. } => self.write_value("INT"),
             _ => self.write_value(v),
         }
 
@@ -356,8 +520,8 @@ impl Serializer<MysqlStore> for MysqlSerializer {
     }
 
     fn serialize_i64(&mut self, v: i64) -> Result<(), Self::Error> {
-        match self.kind {
-            QueryKind::Create => self.write_value("BIGINT"),
+        match self.query {
+            Query::Create { .. } => self.write_value("BIGINT"),
             _ => self.write_value(v),
         }
 
@@ -365,8 +529,8 @@ impl Serializer<MysqlStore> for MysqlSerializer {
     }
 
     fn serialize_u8(&mut self, v: u8) -> Result<(), Self::Error> {
-        match self.kind {
-            QueryKind::Create => self.write_value("TINYINT UNSIGNED"),
+        match self.query {
+            Query::Create { .. } => self.write_value("TINYINT UNSIGNED"),
             _ => self.write_value(v),
         }
 
@@ -374,8 +538,8 @@ impl Serializer<MysqlStore> for MysqlSerializer {
     }
 
     fn serialize_u16(&mut self, v: u16) -> Result<(), Self::Error> {
-        match self.kind {
-            QueryKind::Create => self.write_value("SMALLINT UNSIGNED"),
+        match self.query {
+            Query::Create { .. } => self.write_value("SMALLINT UNSIGNED"),
             _ => self.write_value(v),
         }
 
@@ -383,8 +547,8 @@ impl Serializer<MysqlStore> for MysqlSerializer {
     }
 
     fn serialize_u32(&mut self, v: u32) -> Result<(), Self::Error> {
-        match self.kind {
-            QueryKind::Create => self.write_value("INT UNSIGNED"),
+        match self.query {
+            Query::Create { .. } => self.write_value("INT UNSIGNED"),
             _ => self.write_value(v),
         }
 
@@ -392,8 +556,8 @@ impl Serializer<MysqlStore> for MysqlSerializer {
     }
 
     fn serialize_u64(&mut self, v: u64) -> Result<(), Self::Error> {
-        match self.kind {
-            QueryKind::Create => self.write_value("BIGINT UNSIGNED"),
+        match self.query {
+            Query::Create { .. } => self.write_value("BIGINT UNSIGNED"),
             _ => self.write_value(v),
         }
 
@@ -401,8 +565,8 @@ impl Serializer<MysqlStore> for MysqlSerializer {
     }
 
     fn serialize_f32(&mut self, v: f32) -> Result<(), Self::Error> {
-        match self.kind {
-            QueryKind::Create => self.write_value("FLOAT"),
+        match self.query {
+            Query::Create { .. } => self.write_value("FLOAT"),
             _ => self.write_value(v),
         }
 
@@ -410,8 +574,8 @@ impl Serializer<MysqlStore> for MysqlSerializer {
     }
 
     fn serialize_f64(&mut self, v: f64) -> Result<(), Self::Error> {
-        match self.kind {
-            QueryKind::Create => self.write_value("DOUBLE"),
+        match self.query {
+            Query::Create { .. } => self.write_value("DOUBLE"),
             _ => self.write_value(v),
         }
 
@@ -419,8 +583,8 @@ impl Serializer<MysqlStore> for MysqlSerializer {
     }
 
     fn serialize_str(&mut self, v: &str) -> Result<(), Self::Error> {
-        match self.kind {
-            QueryKind::Create => self.write_value("TEXT"),
+        match self.query {
+            Query::Create { .. } => self.write_value("TEXT"),
             _ => self.write_value(format!("'{}'", v.replace("'", "\\'"))),
         }
 
@@ -776,7 +940,7 @@ impl Deserialize<MysqlStore> for String {
 
 #[cfg(test)]
 mod tests {
-    use super::{MysqlSerializer, QueryKind};
+    use super::{Comparator, Condition, ConditionsExpr, MysqlSerializer, Query, QueryKind};
     use robbot::store::Serializer;
 
     #[test]
@@ -784,14 +948,32 @@ mod tests {
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Create);
         serializer.serialize_field("id", &3).unwrap();
 
-        assert_eq!(serializer.cols, vec![String::from("id")]);
-        assert_eq!(serializer.vals, vec![String::from("INT")]);
+        assert_eq!(
+            serializer.query,
+            Query::Create {
+                table_name: String::from("test"),
+                columns: vec![String::from("id")],
+                values: vec![String::from("INT")],
+            }
+        );
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Delete);
+        serializer.enable_condition();
         serializer.serialize_field("id", &3).unwrap();
 
-        assert_eq!(serializer.cols, vec![String::from("id")]);
-        assert_eq!(serializer.vals, vec![String::from("3")]);
+        assert_eq!(
+            serializer.query,
+            Query::Delete {
+                table_name: String::from("test"),
+                conditions: ConditionsExpr {
+                    conditions: vec![Condition {
+                        column: String::from("id"),
+                        value: String::from("3"),
+                        comparator: Comparator::Eq,
+                    }]
+                }
+            }
+        );
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Insert);
         serializer.serialize_field("id", &3).unwrap();
@@ -799,20 +981,20 @@ mod tests {
         serializer.serialize_field("test", "panic'; DROP").unwrap();
 
         assert_eq!(
-            serializer.cols,
-            vec![
-                String::from("id"),
-                String::from("name"),
-                String::from("test")
-            ]
-        );
-        assert_eq!(
-            serializer.vals,
-            vec![
-                String::from("3"),
-                String::from("'Hello World'"),
-                String::from("'panic\\'; DROP'")
-            ]
+            serializer.query,
+            Query::Insert {
+                table_name: String::from("test"),
+                columns: vec![
+                    String::from("id"),
+                    String::from("name"),
+                    String::from("test")
+                ],
+                values: vec![
+                    String::from("3"),
+                    String::from("'Hello World'"),
+                    String::from("'panic\\'; DROP'")
+                ]
+            }
         );
     }
 
@@ -832,15 +1014,17 @@ mod tests {
 
         assert_eq!(
             serializer.into_sql(),
-            "CREATE TABLE IF NOT EXISTS test (id INT, name BIGINT)"
+            "CREATE TABLE IF NOT EXISTS test (id INT,name BIGINT)"
         );
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Delete);
+        serializer.enable_condition();
         serializer.serialize_field("id", &3).unwrap();
 
         assert_eq!(serializer.into_sql(), "DELETE FROM test WHERE id = 3");
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Delete);
+        serializer.enable_condition();
         serializer.serialize_field("id", &3).unwrap();
         serializer.serialize_field("name", &345i64).unwrap();
 
@@ -860,7 +1044,7 @@ mod tests {
 
         assert_eq!(
             serializer.into_sql(),
-            "INSERT INTO test (id, name) VALUES (3, 345)"
+            "INSERT INTO test (id,name) VALUES (3,345)"
         );
     }
 }
