@@ -1,5 +1,6 @@
 mod commands;
-mod permissions;
+
+const PERMISSION_MANAGE: &str = "permissions.manage";
 
 use robbot::Result;
 use robbot_core::permissions::{RolePermission, UserPermission};
