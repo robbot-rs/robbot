@@ -117,16 +117,6 @@ impl EventHandler for Handler {
             None => return,
         };
 
-        #[cfg(feature = "permissions")]
-        {
-            let config = self.state.config.read().unwrap();
-            let admins = &config.admins;
-
-            if !admins.contains(&message.author.id.0) {
-                return;
-            }
-        }
-
         let mut args = CommandArguments::new(parse_args(msg));
 
         let cmd = {
