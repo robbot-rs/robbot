@@ -7,35 +7,10 @@ use sqlx::{
     mysql::{MySqlPool, MySqlRow},
     Row,
 };
-use std::{
-    error,
-    fmt::{self, Display, Formatter},
-};
 
-#[derive(Debug)]
-pub enum Error {
-    SQLx(sqlx::Error),
-}
+use std::fmt::{self, Display, Formatter};
 
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::SQLx(err) => err,
-            }
-        )
-    }
-}
-
-impl error::Error for Error {}
-
-impl From<sqlx::Error> for Error {
-    fn from(err: sqlx::Error) -> Self {
-        Self::SQLx(err)
-    }
-}
+pub type Error = sqlx::Error;
 
 /// A Store using the MySQL database.
 #[derive(Clone)]
