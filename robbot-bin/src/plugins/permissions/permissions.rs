@@ -1,1 +1,1 @@
-pub const MANAGE: &'static str = "permissions.manage";
+pub const MANAGE: &str = "permissions.manage";

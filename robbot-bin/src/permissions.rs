@@ -5,7 +5,7 @@ use serenity::Error;
 pub async fn has_permission(ctx: &MessageContext, permissions: &[String]) -> Result<bool, Error> {
     // Skip the permission checks if the command
     // requires no permissions.
-    if permissions.len() == 0 {
+    if permissions.is_empty() {
         return Ok(true);
     }
 
