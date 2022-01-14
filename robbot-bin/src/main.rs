@@ -111,22 +111,28 @@ impl EventHandler for Handler {
             None => return,
         };
 
-        let mut args = CommandArguments::new(parse_args(msg));
+        let mut args = parse_args(msg);
+        let mut cmd_args = CommandArguments::new(args.clone());
 
         let cmd = {
             let commands = self.state.commands().get_inner();
             let commands = commands.read().unwrap();
 
-            match find_command(&commands, &mut args) {
+            match find_command(&commands, &mut cmd_args) {
                 Some(cmd) => cmd.clone(),
                 None => return,
             }
         };
 
+        // Only retain the base path of the called command.
+        for _ in 0..cmd_args.as_args().len() {
+            args.remove(args.len() - 1);
+        }
+
         let ctx = robbot_core::context::Context {
             raw_ctx: raw_ctx.clone(),
             state: self.state.clone(),
-            args,
+            args: cmd_args,
             event: message.clone(),
         };
 
@@ -176,7 +182,7 @@ impl EventHandler for Handler {
                         }
                         _ => {
                             let _ = ctx.respond(":warning: Internal Server Error").await;
-                            log::error!("Command error: {:?}", err);
+                            log::error!("Command '{}' returned an error: {:?}", args, err);
                         }
                     }
                 }
