@@ -5,6 +5,8 @@ use std::{
     str::FromStr,
 };
 
+use std::fmt::{self, Display, Formatter};
+
 pub trait ArgumentsExt: AsRef<[String]> {
     /// Returns the number of arguments.
     fn len(&self) -> usize;
@@ -151,6 +153,12 @@ where
     }
 }
 
+impl<'life0> Display for Arguments<'life0> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.0.join(" "))
+    }
+}
+
 /// A list of owned arguments.
 #[derive(Clone, Debug, Default)]
 pub struct OwnedArguments(Vec<String>);
@@ -273,6 +281,12 @@ where
         T: IntoIterator<Item = I>,
     {
         Self(iter.into_iter().map(|item| item.to_string()).collect())
+    }
+}
+
+impl Display for OwnedArguments {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.as_args().fmt(f)
     }
 }
 
