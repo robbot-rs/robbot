@@ -206,12 +206,15 @@ impl EventHandler for Handler {
         }
     }
 
-    async fn ready(&self, _ctx: Context, _ready: serenity::model::gateway::Ready) {
+    async fn ready(&self, ctx: Context, _ready: serenity::model::gateway::Ready) {
         log::info!("[BOT] Bot online");
 
         {
             let mut connect_time = self.state.connect_time.write().unwrap();
             *connect_time = Some(std::time::Instant::now());
         }
+
+        let ctx = robbot_core::context::Context::new(ctx, self.state.clone(), ());
+        self.state.tasks().update_context(Some(ctx)).await;
     }
 }

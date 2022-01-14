@@ -138,7 +138,10 @@ impl TaskQueue {
 
         let time_wait = self.get(0)?.execution_time - now;
 
-        time::sleep(time_wait.to_std().unwrap()).await;
+        if time_wait > Duration::seconds(0) {
+            time::sleep(time_wait.to_std().unwrap()).await;
+        }
+
         self.pop()
     }
 
@@ -168,6 +171,7 @@ impl InnerTaskScheduler {
     }
 
     fn add_task(&mut self, task: Task) {
+        log::info!("[TASK] Added new task '{}'", task.name);
         self.tasks.push(task);
     }
 
