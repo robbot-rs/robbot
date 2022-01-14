@@ -58,9 +58,10 @@ impl Store for MysqlStore {
 
         query.serialize(&mut serializer).unwrap();
 
-        sqlx::query(&serializer.into_sql())
-            .execute(&self.pool)
-            .await?;
+        let sql = serializer.into_sql();
+        log::debug!("[MySQL] Executing SQL delete query: \"{}\"", sql);
+
+        sqlx::query(&sql).execute(&self.pool).await?;
 
         Ok(())
     }
@@ -81,6 +82,8 @@ impl Store for MysqlStore {
         query.serialize(&mut serializer).unwrap();
 
         let sql = serializer.into_sql();
+        log::debug!("[MySQL] Executing SQL select query: \"{}\"", sql);
+
         let mut rows = sqlx::query(&sql).fetch(&self.pool);
 
         let mut entries = Vec::new();
@@ -100,8 +103,13 @@ impl Store for MysqlStore {
         T: StoreData<Self> + Default + Send,
     {
         let table_name = T::resource_name();
+        let data = T::default();
 
-        let sql = MysqlSerializer::new(table_name, QueryKind::Select).into_sql();
+        let mut serializer = MysqlSerializer::new(table_name, QueryKind::Select);
+        data.serialize(&mut serializer).unwrap();
+
+        let sql = serializer.into_sql();
+        log::debug!("[MySQL] Executing SQL select query: \"{}\"", sql);
 
         let mut rows = sqlx::query(&sql).fetch(&self.pool);
 
@@ -133,6 +141,8 @@ impl Store for MysqlStore {
         query.serialize(&mut serializer).unwrap();
 
         let sql = serializer.into_sql();
+        log::debug!("[MySQL] Executing SQL select query: \"{}\"", sql);
+
         let row = sqlx::query(&sql).fetch_one(&self.pool).await.unwrap();
 
         let mut deserializer = MysqlDeserializer::new(row);
@@ -150,9 +160,10 @@ impl Store for MysqlStore {
         let mut serializer = MysqlSerializer::new(table_name, QueryKind::Insert);
         data.serialize(&mut serializer).unwrap();
 
-        sqlx::query(&serializer.into_sql())
-            .execute(&self.pool)
-            .await?;
+        let sql = serializer.into_sql();
+        log::debug!("[MySQL] Executing SQL insert query: \"{}\"", sql);
+
+        sqlx::query(&sql).execute(&self.pool).await?;
 
         Ok(())
     }
