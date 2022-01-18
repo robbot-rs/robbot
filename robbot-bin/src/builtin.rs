@@ -25,7 +25,7 @@ pub fn init(state: &State) -> Result {
 #[command(
     description = "Show the global help message or a help message for a command.",
     usage = "[Path to Command]",
-    example = "uptime"
+    example = "help"
 )]
 async fn help(mut ctx: MessageContext) -> Result {
     let description = {
