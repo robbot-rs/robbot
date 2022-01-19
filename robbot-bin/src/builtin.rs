@@ -1,6 +1,6 @@
 use crate::help;
 use robbot::{arguments::ArgumentsExt, builder::CreateMessage, command, Context, Result};
-use robbot_core::{command::Command, context::MessageContext, router::find_command, state::State};
+use robbot_core::{command::Command, context::MessageContext, state::State};
 use serenity::utils::Color;
 
 /// The color of the embed used by all builtin commands.
@@ -28,20 +28,15 @@ pub fn init(state: &State) -> Result {
     example = "help"
 )]
 async fn help(mut ctx: MessageContext) -> Result {
-    let description = {
-        let commands = ctx.state.commands().get_inner();
-        let commands = commands.read().unwrap();
-
-        match ctx.args.is_empty() {
-            // Try to show command help.
-            false => match find_command(&commands, &mut ctx.args) {
-                Some(command) => help::command(command),
-                // Cannot find command, show global help instead.
-                None => help::global(&commands),
-            },
-            // Show global help.
-            true => help::global(&commands),
-        }
+    let description = match ctx.args.is_empty() {
+        // Try to show command help.
+        false => match ctx.state.commands().get_command(&mut ctx.args) {
+            Some(command) => help::command(&command),
+            // Cannot find command, show global help instead.
+            None => help::global(&ctx.state.commands().list_root_commands()),
+        },
+        // Show global help.
+        true => help::global(&ctx.state.commands().list_root_commands()),
     };
 
     ctx.respond(CreateMessage::new(|m| {

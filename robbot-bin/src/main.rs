@@ -16,10 +16,7 @@ use robbot::{
     arguments::CommandArguments, executor::Executor as _, Command as _, Context as ContextExt,
     Error,
 };
-use robbot_core::{
-    router::{find_command, parse_args},
-    state::State,
-};
+use robbot_core::{router::parse_args, state::State};
 use serenity::{
     client::{bridge::gateway::GatewayIntents, Client, Context, EventHandler},
     model::channel::Message,
@@ -114,14 +111,9 @@ impl EventHandler for Handler {
         let mut args = parse_args(msg);
         let mut cmd_args = CommandArguments::new(args.clone());
 
-        let cmd = {
-            let commands = self.state.commands().get_inner();
-            let commands = commands.read().unwrap();
-
-            match find_command(&commands, &mut cmd_args) {
-                Some(cmd) => cmd.clone(),
-                None => return,
-            }
+        let cmd = match self.state.commands().get_command(&mut cmd_args) {
+            Some(cmd) => cmd,
+            None => return,
         };
 
         // Only retain the base path of the called command.

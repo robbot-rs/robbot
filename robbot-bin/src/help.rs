@@ -1,13 +1,10 @@
 use robbot::command::Command;
-use std::{collections::HashSet, fmt::Write};
+use std::fmt::Write;
 
-pub(crate) fn global<T>(commands: &HashSet<T>) -> String
-where
-    T: Command,
-{
+pub(crate) fn global(commands: &Vec<String>) -> String {
     let mut string = String::new();
     for command in commands {
-        writeln!(string, "- {}", command.name()).unwrap();
+        let _ = writeln!(string, "- {}", command);
     }
 
     string

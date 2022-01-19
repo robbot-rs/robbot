@@ -147,14 +147,14 @@ impl CommandExt for Command {
 
 #[derive(Clone)]
 pub struct LoadedCommand {
-    name: String,
-    description: String,
-    usage: String,
-    example: String,
-    guild_only: bool,
-    sub_commands: HashSet<Self>,
-    executor: Option<Executor<MessageContext>>,
-    permissions: Vec<String>,
+    pub name: String,
+    pub description: String,
+    pub usage: String,
+    pub example: String,
+    pub guild_only: bool,
+    pub sub_commands: HashSet<Self>,
+    pub executor: Option<Executor<MessageContext>>,
+    pub permissions: Vec<String>,
 }
 
 impl From<Command> for LoadedCommand {
@@ -247,6 +247,23 @@ impl CommandHandler {
         Self::default()
     }
 
+    /// Returns the command matching `args`. If no matching command can
+    /// be found `None` is returned.
+    pub fn get_command<A>(&self, args: &mut A) -> Option<LoadedCommand>
+    where
+        A: ArgumentsExt,
+    {
+        let cmds = self.inner.read().unwrap();
+        let command = find_command(&cmds, args)?;
+        Some(command.clone())
+    }
+
+    /// Returns a list all command's names in the command root.
+    pub fn list_root_commands(&self) -> Vec<String> {
+        let cmds = self.inner.read().unwrap();
+        cmds.iter().map(|c| c.name.clone()).collect()
+    }
+
     /// Loads a single command. If `path` is `None`, the command
     /// will be loaded in this scope.
     pub fn load_command(&self, command: Command, path: Option<&str>) -> Result<(), Error> {
@@ -277,21 +294,6 @@ impl CommandHandler {
         }
 
         Ok(())
-    }
-
-    pub fn get_command<A>(&self, args: &mut A) -> Option<LoadedCommand>
-    where
-        A: ArgumentsExt,
-    {
-        let cmds = self.inner.read().unwrap();
-
-        let command = find_command(&cmds, args)?;
-
-        Some(command.clone())
-    }
-
-    pub fn get_inner(&self) -> Arc<RwLock<HashSet<LoadedCommand>>> {
-        self.inner.clone()
     }
 
     /// Removes the command with the given `ident`. If a path is provided,
