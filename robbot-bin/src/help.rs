@@ -1,7 +1,7 @@
 use robbot::command::Command;
 use std::fmt::Write;
 
-pub(crate) fn global(commands: &Vec<String>) -> String {
+pub(crate) fn global(commands: &[String]) -> String {
     let mut string = String::new();
     for command in commands {
         let _ = writeln!(string, "- {}", command);
