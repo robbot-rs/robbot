@@ -101,7 +101,7 @@ pub struct Handler {
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, raw_ctx: Context, message: Message) {
-        let message = robbot::model::Message::from(message);
+        let message = robbot::model::channel::Message::from(message);
 
         let msg = match message.content.strip_prefix('!') {
             Some(msg) => msg,
@@ -160,8 +160,7 @@ impl EventHandler for Handler {
                     match err {
                         // Display command help message.
                         Error::InvalidCommandUsage => {
-                            let _ = message
-                                .channel_id
+                            let _ = serenity::model::id::ChannelId(message.channel_id.0)
                                 .send_message(&ctx.raw_ctx, |m| {
                                     m.embed(|e| {
                                         e.title(format!("Command Help: {}", cmd.name()));
@@ -183,8 +182,7 @@ impl EventHandler for Handler {
                 help::command(&cmd);
 
                 // Ignore error
-                let _ = message
-                    .channel_id
+                let _ = serenity::model::id::ChannelId(message.channel_id.0)
                     .send_message(&ctx.raw_ctx, |m| {
                         m.embed(|e| {
                             e.title(format!("Command Help: {}", cmd.name()));
@@ -201,12 +199,17 @@ impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, _ready: serenity::model::gateway::Ready) {
         log::info!("[BOT] Bot online");
 
+        let ctx = robbot_core::context::Context::new(ctx, self.state.clone(), ());
+
         {
             let mut connect_time = self.state.connect_time.write().unwrap();
             *connect_time = Some(std::time::Instant::now());
         }
+        {
+            let mut context = self.state.context.write().unwrap();
+            *context = Some(ctx.clone());
+        }
 
-        let ctx = robbot_core::context::Context::new(ctx, self.state.clone(), ());
         self.state.tasks().update_context(Some(ctx)).await;
     }
 }

@@ -1,13 +1,12 @@
 use super::PERMISSION_MANAGE;
 
-use robbot_core::permissions::{RolePermission, UserPermission};
-
 use robbot::arguments::ArgumentsExt;
 use robbot::builder::CreateMessage;
+use robbot::model::id::{RoleId, UserId};
 use robbot::{command, Context, Error, Result, StoreData};
 use robbot_core::context::MessageContext;
+use robbot_core::permissions::{RolePermission, UserPermission};
 
-use serenity::model::id::{RoleId, UserId};
 use std::fmt::Write;
 
 pub(super) const COMMANDS: &[fn() -> robbot_core::command::Command] = &[add, list, remove];
