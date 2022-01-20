@@ -10,3 +10,4 @@ async-trait = "~0.1.51"
 serenity = { version = "~0.10.9", default-features = false, features = ["builder", "model", "rustls_backend"] }
 chrono = "~0.4.19"
 serde = { version = "~1.0.130", features = ["derive"] }
+thiserror = "1.0.30"
