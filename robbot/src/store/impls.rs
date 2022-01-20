@@ -2,7 +2,8 @@
 //! types.
 
 use super::{Deserialize, Deserializer, Serialize, Serializer, Store};
-use serenity::model::id::{ChannelId, GuildId, MessageId, RoleId, UserId};
+
+use crate::model::id::{ChannelId, GuildId, MessageId, RoleId, UserId};
 
 impl<T> Serialize<T> for ChannelId
 where
