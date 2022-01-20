@@ -1,9 +1,11 @@
 use crate::builder::{CreateMessage, EditMember};
-use crate::model::Message;
+use crate::model::channel::Message;
+
+use crate::model::id::{ChannelId, MessageId};
 
 use serenity::model::channel::ReactionType;
 use serenity::model::guild::Member;
-use serenity::model::id::{ChannelId, GuildId, MessageId, UserId};
+use serenity::model::id::{GuildId, UserId};
 
 use async_trait::async_trait;
 

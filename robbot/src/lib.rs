@@ -6,10 +6,11 @@ pub mod context;
 pub mod executor;
 pub mod hook;
 pub mod model;
+pub mod remote;
 pub mod store;
 pub mod task;
 
-pub use robbot_derive::{command, StoreData};
+pub use robbot_derive::{command, Decode, Encode, StoreData};
 pub use {
     arguments::Arguments,
     bot::{Error, Result},

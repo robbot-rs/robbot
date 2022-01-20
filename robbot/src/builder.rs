@@ -1,15 +1,19 @@
+use crate as robbot;
+use crate::{Decode, Encode};
+
+use crate::model::channel::{Color, MessageReference};
+
 use serde::{Deserialize, Serialize};
-use serenity::utils::Color;
 use std::convert::{From, Into};
 
 use serenity::model::id::{ChannelId, RoleId};
 
 /// [`CreateMessage`] is used to construct a new
 /// message.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Encode, Decode)]
 pub struct CreateMessage {
     content: Option<String>,
-    reference_message: Option<serenity::model::channel::MessageReference>,
+    reference_message: Option<MessageReference>,
     embed: Option<CreateEmbed>,
 }
 
@@ -34,7 +38,7 @@ impl CreateMessage {
 
     pub fn reference_message<T>(&mut self, reference: T) -> &mut Self
     where
-        T: Into<serenity::model::channel::MessageReference>,
+        T: Into<MessageReference>,
     {
         self.reference_message = Some(reference.into());
         self
@@ -54,7 +58,10 @@ impl CreateMessage {
         }
 
         if let Some(reference_message) = self.reference_message {
-            builder.reference_message(reference_message);
+            builder.reference_message((
+                serenity::model::id::ChannelId(reference_message.channel_id.0),
+                serenity::model::id::MessageId(reference_message.message_id.unwrap().0),
+            ));
         }
 
         if let Some(embed) = self.embed {
@@ -77,7 +84,7 @@ where
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Encode, Decode)]
 pub struct CreateEmbed {
     color: Option<Color>,
     description: Option<String>,
@@ -128,7 +135,7 @@ impl CreateEmbed {
         }
 
         if let Some(color) = self.color {
-            builder.color(color);
+            builder.color(color.0);
         }
     }
 }
