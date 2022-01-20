@@ -4,18 +4,13 @@ use robbot::{
     arguments::{CommandArguments, OwnedArguments},
     builder::CreateMessage,
     context::Context as ContextExt,
-    model::Message,
 };
-use serenity::{
-    client::Context as RawContext,
-    model::{
-        channel::ReactionType,
-        id::{ChannelId, MessageId},
-    },
-};
+use serenity::{client::Context as RawContext, model::channel::ReactionType};
 use std::sync::Arc;
 
 use robbot::builder::EditMember;
+use robbot::model::channel::Message;
+use robbot::model::id::{ChannelId, MessageId};
 
 use serenity::model::guild::Member;
 use serenity::model::id::{GuildId, UserId};
@@ -62,7 +57,7 @@ where
     where
         S: Into<CreateMessage> + Send,
     {
-        let message = channel_id
+        let message = serenity::model::id::ChannelId(channel_id.0)
             .send_message(&self.raw_ctx, |m| {
                 message.into().fill_builder(m);
                 m

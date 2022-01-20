@@ -25,7 +25,7 @@ pub async fn has_permission(ctx: &MessageContext, permissions: &[String]) -> Res
         match ctx
             .raw_ctx
             .cache
-            .member(ctx.event.guild_id.unwrap(), ctx.event.author.id)
+            .member(ctx.event.guild_id.unwrap().0, ctx.event.author.id.0)
             .await
         {
             Some(member) => member,

@@ -1,5 +1,6 @@
 use crate::command::CommandHandler;
 use crate::config::Config;
+use crate::context::Context;
 use crate::permissions::PermissionHandler;
 use crate::store::mysql::MysqlStore;
 use crate::store::MainStore;
@@ -16,6 +17,7 @@ pub struct State {
     store: MainStore<MysqlStore>,
     permissions: PermissionHandler,
     pub connect_time: Arc<RwLock<Option<Instant>>>,
+    pub context: Arc<RwLock<Option<Context<()>>>>,
 }
 
 impl State {
@@ -46,6 +48,11 @@ impl State {
     pub fn permissions(&self) -> &PermissionHandler {
         &self.permissions
     }
+
+    pub fn context(&self) -> Option<Context<()>> {
+        let context = self.context.read().unwrap();
+        context.clone()
+    }
 }
 
 impl Default for State {
@@ -56,6 +63,7 @@ impl Default for State {
         let store: MainStore<MysqlStore> = MainStore::default();
         let permissions = PermissionHandler::new(store.clone());
         let connect_time = Arc::default();
+        let context = Arc::default();
 
         Self {
             config,
@@ -64,6 +72,7 @@ impl Default for State {
             store,
             permissions,
             connect_time,
+            context,
         }
     }
 }

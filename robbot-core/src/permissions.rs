@@ -1,10 +1,10 @@
 use crate::store::mysql::MysqlStore;
 use crate::store::{Error, MainStore};
 
+use robbot::model::id::{GuildId, RoleId, UserId};
 use robbot::StoreData;
 
 use serenity::model::guild::Member;
-use serenity::model::id::{GuildId, RoleId, UserId};
 
 // TODO: Make PermissionHandler with any type of store.
 #[derive(Clone)]
@@ -27,7 +27,11 @@ impl PermissionHandler {
     ) -> Result<bool, Error> {
         // Check the user for permissions.
         if self
-            .user_has_permission(member.user.id, member.guild_id, node.as_ref())
+            .user_has_permission(
+                UserId(member.user.id.0),
+                GuildId(member.guild_id.0),
+                node.as_ref(),
+            )
             .await?
         {
             return Ok(true);
@@ -36,7 +40,7 @@ impl PermissionHandler {
         // Check all roles for permissions.
         for role in &member.roles {
             if self
-                .role_has_permission(*role, member.guild_id, node.as_ref())
+                .role_has_permission(RoleId(role.0), GuildId(member.guild_id.0), node.as_ref())
                 .await?
             {
                 return Ok(true);
