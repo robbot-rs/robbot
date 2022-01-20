@@ -1,3 +1,5 @@
+mod decode;
+mod encode;
 mod storedata;
 
 use proc_macro::TokenStream;
@@ -91,4 +93,14 @@ impl Parse for Args {
 #[proc_macro_derive(StoreData)]
 pub fn storedata(input: TokenStream) -> TokenStream {
     storedata::expand_macro(input)
+}
+
+#[proc_macro_derive(Encode)]
+pub fn encode(input: TokenStream) -> TokenStream {
+    encode::expand_macro(input)
+}
+
+#[proc_macro_derive(Decode)]
+pub fn decode(input: TokenStream) -> TokenStream {
+    decode::expand_macro(input)
 }
