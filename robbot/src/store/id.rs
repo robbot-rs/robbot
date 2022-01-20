@@ -6,6 +6,8 @@ mod snowflake {
     use crate::store::{Deserialize, Deserializer, Serialize, Serializer, Store};
     use chrono::Utc;
 
+    use std::fmt::{self, Display, Formatter};
+
     const BITMASK_TIMESTAMP: u64 = 0xFFFFFFFFFF800000;
     const BITMASK_INSTANCE: u64 = 0x3FF000;
     const BITMASK_SEQUENCE: u64 = 0xFFF;
@@ -44,6 +46,12 @@ mod snowflake {
         /// Returns the sequence component of the `Snowflake`.
         pub const fn sequence(&self) -> u64 {
             self.0 & BITMASK_SEQUENCE
+        }
+    }
+
+    impl Display for Snowflake {
+        fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+            self.0.fmt(f)
         }
     }
 
