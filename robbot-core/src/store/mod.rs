@@ -99,7 +99,7 @@ where
 
     pub async fn create<T>(&self) -> Result<()>
     where
-        T: StoreData<S> + Default + Send + Sync + 'static,
+        T: StoreData<S> + Send + Sync + 'static,
         T::DataDescriptor: Default + Send + Sync,
     {
         let descriptor = T::DataDescriptor::default();
@@ -110,7 +110,7 @@ where
 
     pub async fn delete<T, Q>(&self, query: Q) -> Result<()>
     where
-        T: StoreData<S> + Default + Send + Sync + 'static,
+        T: StoreData<S> + Send + Sync + 'static,
         Q: DataQuery<T, S> + Send,
     {
         self.store().delete(query).await?;
@@ -119,7 +119,7 @@ where
 
     pub async fn get<T, Q>(&self, query: Q) -> Result<Vec<T>>
     where
-        T: StoreData<S> + Send + Sync + Default + 'static,
+        T: StoreData<S> + Send + Sync + 'static,
         T::DataDescriptor: Default + Send + Sync,
         Q: DataQuery<T, S> + Send,
     {
@@ -131,7 +131,7 @@ where
 
     pub async fn get_all<T>(&self) -> Result<Vec<T>>
     where
-        T: StoreData<S> + Send + Sync + Default + 'static,
+        T: StoreData<S> + Send + Sync + 'static,
         T::DataDescriptor: Default + Send + Sync,
     {
         let descriptor = T::DataDescriptor::default();
@@ -142,7 +142,7 @@ where
 
     pub async fn get_one<T, Q>(&self, query: Q) -> Result<Option<T>>
     where
-        T: StoreData<S> + Send + Sync + Default + 'static,
+        T: StoreData<S> + Send + Sync + 'static,
         T::DataDescriptor: Default + Send + Sync,
         Q: DataQuery<T, S> + Send + Sync,
     {

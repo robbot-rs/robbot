@@ -110,7 +110,7 @@ impl PermissionHandler {
 }
 
 /// A permission node for a user in a single guild.
-#[derive(Clone, Debug, Default, StoreData)]
+#[derive(Clone, Debug, StoreData)]
 pub struct UserPermission {
     pub guild_id: GuildId,
     pub user_id: UserId,
@@ -118,7 +118,7 @@ pub struct UserPermission {
 }
 
 /// A permission node for a role in a single guild.
-#[derive(Clone, Debug, Default, StoreData)]
+#[derive(Clone, Debug, StoreData)]
 pub struct RolePermission {
     pub guild_id: GuildId,
     pub role_id: RoleId,
