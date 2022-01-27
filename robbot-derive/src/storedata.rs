@@ -26,11 +26,13 @@ pub(crate) fn expand_macro(input: proc_macro::TokenStream) -> proc_macro::TokenS
     let storedata = expand_storedata(&ident, &field_idents, &field_types);
     let dataquery = expand_dataquery(&ident, &field_idents, &field_types);
     let dataquery_self = expand_dataquery_self(&ident, &field_idents, &field_types);
+    let datadescriptor = expand_datadescriptor_self(&ident, &field_idents, &field_types);
 
     let expanded = quote! {
         #storedata
         #dataquery
         #dataquery_self
+        #datadescriptor
     };
 
     proc_macro::TokenStream::from(expanded)
@@ -58,6 +60,7 @@ fn expand_storedata(ident: &Ident, field_idents: &[Ident], field_types: &[Type])
     });
 
     let dataquery_ident = Ident::new(&format!("{}Query", ident), Span::call_site());
+    let datadescriptor_ident = Ident::new(&format!("{}Descriptor", ident), Span::call_site());
 
     quote! {
         impl<T> robbot::store::StoreData<T> for #ident
@@ -65,6 +68,7 @@ fn expand_storedata(ident: &Ident, field_idents: &[Ident], field_types: &[Type])
             T: robbot::store::Store,
             #trait_bounds
         {
+            type DataDescriptor = #datadescriptor_ident;
             type DataQuery = #dataquery_ident;
 
             fn resource_name() -> String {
@@ -210,5 +214,44 @@ fn expand_type_trait_bounds(types: &[Type]) -> TokenStream {
         #(
             #traits: robbot::store::Serialize<T> + robbot::store::Deserialize<T>,
         )*
+    }
+}
+
+fn expand_datadescriptor_self(
+    ident: &Ident,
+    field_idents: &[Ident],
+    field_types: &[Type],
+) -> TokenStream {
+    let trait_bounds = expand_type_trait_bounds(field_types);
+
+    let datadescriptor_ident = Ident::new(&format!("{}Descriptor", ident), Span::call_site());
+
+    let impl_serialize = field_idents.iter().zip(field_types).map(|(ident, ty)| {
+        let name = ident.to_string();
+        let ty = ty.clone();
+
+        quote! {
+            serializer.serialize_field::<#ty>(#name)?;
+        }
+    });
+
+    quote! {
+        #[derive(Copy, Clone, Debug, Default)]
+        pub struct #datadescriptor_ident;
+
+        impl<T> robbot::store::DataDescriptor<#ident, T> for #datadescriptor_ident
+        where
+            T: robbot::store::Store,
+            #trait_bounds
+        {
+            fn serialize<S>(&self, serializer: &mut S) -> ::std::result::Result<(), S::Error>
+            where
+                S: robbot::store::TypeSerializer<T>,
+            {
+                #(#impl_serialize)*
+
+                ::std::result::Result::Ok(())
+            }
+        }
     }
 }
