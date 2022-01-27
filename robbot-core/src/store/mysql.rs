@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use futures::TryStreamExt;
 use robbot::store::{
-    DataQuery, Deserialize, Deserializer, Serialize, Serializer, Store, StoreData,
+    DataDescriptor, DataQuery, Deserialize, Deserializer, Serialize, Serializer, Store, StoreData,
+    TypeSerializer,
 };
 use sqlx::{
     mysql::{MySqlPool, MySqlRow},
@@ -29,15 +30,15 @@ impl Store for MysqlStore {
         Ok(Self { pool })
     }
 
-    async fn create<T>(&self) -> Result<(), Error>
+    async fn create<T, D>(&self, descriptor: D) -> Result<(), Error>
     where
-        T: StoreData<Self> + Default + Send,
+        T: StoreData<Self>,
+        D: DataDescriptor<T, Self> + Send + Sync,
     {
-        let data = T::default();
         let table_name = T::resource_name();
 
         let mut serializer = MysqlSerializer::new(table_name, QueryKind::Create);
-        data.serialize(&mut serializer).unwrap();
+        descriptor.serialize(&mut serializer).unwrap();
 
         sqlx::query(&serializer.into_sql())
             .execute(&self.pool)
@@ -48,7 +49,7 @@ impl Store for MysqlStore {
 
     async fn delete<T, Q>(&self, query: Q) -> Result<(), Error>
     where
-        T: StoreData<Self> + Default + Send,
+        T: StoreData<Self> + Send,
         Q: DataQuery<T, Self> + Send,
     {
         let table_name = T::resource_name();
@@ -66,17 +67,16 @@ impl Store for MysqlStore {
         Ok(())
     }
 
-    async fn get<T, Q>(&self, query: Q) -> Result<Vec<T>, Error>
+    async fn get<T, D, Q>(&self, descriptor: D, query: Q) -> Result<Vec<T>, Error>
     where
-        T: StoreData<Self> + Default + Send,
+        T: StoreData<Self> + Send,
+        D: DataDescriptor<T, Self> + Send,
         Q: DataQuery<T, Self> + Send,
     {
-        let data = T::default();
         let table_name = T::resource_name();
 
         let mut serializer = MysqlSerializer::new(table_name, QueryKind::Select);
-
-        data.serialize(&mut serializer).unwrap();
+        descriptor.serialize(&mut serializer).unwrap();
 
         serializer.enable_condition();
         query.serialize(&mut serializer).unwrap();
@@ -98,15 +98,15 @@ impl Store for MysqlStore {
         Ok(entries)
     }
 
-    async fn get_all<T>(&self) -> Result<Vec<T>, Error>
+    async fn get_all<T, D>(&self, descriptor: D) -> Result<Vec<T>, Error>
     where
-        T: StoreData<Self> + Default + Send,
+        T: StoreData<Self> + Send,
+        D: DataDescriptor<T, Self> + Send,
     {
         let table_name = T::resource_name();
-        let data = T::default();
 
         let mut serializer = MysqlSerializer::new(table_name, QueryKind::Select);
-        data.serialize(&mut serializer).unwrap();
+        descriptor.serialize(&mut serializer).unwrap();
 
         let sql = serializer.into_sql();
         log::debug!("[MySQL] Executing SQL select query: \"{}\"", sql);
@@ -125,17 +125,16 @@ impl Store for MysqlStore {
         Ok(entries)
     }
 
-    async fn get_one<T, Q>(&self, query: Q) -> Result<Option<T>, Error>
+    async fn get_one<T, D, Q>(&self, descriptor: D, query: Q) -> Result<Option<T>, Error>
     where
-        T: StoreData<Self> + Default + Send,
+        T: StoreData<Self> + Send,
+        D: DataDescriptor<T, Self> + Send,
         Q: DataQuery<T, Self> + Send,
     {
-        let data = T::default();
         let table_name = T::resource_name();
 
         let mut serializer = MysqlSerializer::new(table_name, QueryKind::Select);
-
-        data.serialize(&mut serializer).unwrap();
+        descriptor.serialize(&mut serializer).unwrap();
 
         serializer.enable_condition();
         query.serialize(&mut serializer).unwrap();
@@ -588,6 +587,78 @@ impl Serializer<MysqlStore> for MysqlSerializer {
     }
 }
 
+impl TypeSerializer<MysqlStore> for MysqlSerializer {
+    type Error = Error;
+
+    fn serialize_bool(&mut self) -> Result<(), Self::Error> {
+        self.write_value("BOOLEAN");
+        Ok(())
+    }
+
+    fn serialize_i8(&mut self) -> Result<(), Self::Error> {
+        self.write_value("TINYINT");
+        Ok(())
+    }
+
+    fn serialize_i16(&mut self) -> Result<(), Self::Error> {
+        self.write_value("SMALLINT");
+        Ok(())
+    }
+
+    fn serialize_i32(&mut self) -> Result<(), Self::Error> {
+        self.write_value("INT");
+        Ok(())
+    }
+
+    fn serialize_i64(&mut self) -> Result<(), Self::Error> {
+        self.write_value("BIGINT");
+        Ok(())
+    }
+
+    fn serialize_u8(&mut self) -> Result<(), Self::Error> {
+        self.write_value("TINYINT UNSIGNED");
+        Ok(())
+    }
+
+    fn serialize_u16(&mut self) -> Result<(), Self::Error> {
+        self.write_value("SMALLINT UNSIGNED");
+        Ok(())
+    }
+
+    fn serialize_u32(&mut self) -> Result<(), Self::Error> {
+        self.write_value("INT UNSIGNED");
+        Ok(())
+    }
+
+    fn serialize_u64(&mut self) -> Result<(), Self::Error> {
+        self.write_value("BIGINT UNSIGNED");
+        Ok(())
+    }
+
+    fn serialize_f32(&mut self) -> Result<(), Self::Error> {
+        self.write_value("FLOAT");
+        Ok(())
+    }
+
+    fn serialize_f64(&mut self) -> Result<(), Self::Error> {
+        self.write_value("DOUBLE");
+        Ok(())
+    }
+
+    fn serialize_str(&mut self) -> Result<(), Self::Error> {
+        self.write_value("TEXT");
+        Ok(())
+    }
+
+    fn serialize_field<T>(&mut self, key: &'static str) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize<MysqlStore>,
+    {
+        self.write_column(key);
+        T::serialize_type(self)
+    }
+}
+
 /// A [`Deserializer`] for reading datatypes from rows. Used
 /// by [`MysqlStore`].
 pub struct MysqlDeserializer {
@@ -702,6 +773,13 @@ impl Serialize<MysqlStore> for bool {
     {
         serializer.serialize_bool(*self)
     }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<MysqlStore>,
+    {
+        serializer.serialize_bool()
+    }
 }
 
 impl Serialize<MysqlStore> for i8 {
@@ -710,6 +788,13 @@ impl Serialize<MysqlStore> for i8 {
         S: Serializer<MysqlStore>,
     {
         serializer.serialize_i8(*self)
+    }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<MysqlStore>,
+    {
+        serializer.serialize_i8()
     }
 }
 
@@ -720,6 +805,13 @@ impl Serialize<MysqlStore> for i16 {
     {
         serializer.serialize_i16(*self)
     }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<MysqlStore>,
+    {
+        serializer.serialize_i16()
+    }
 }
 
 impl Serialize<MysqlStore> for i32 {
@@ -728,6 +820,13 @@ impl Serialize<MysqlStore> for i32 {
         S: Serializer<MysqlStore>,
     {
         serializer.serialize_i32(*self)
+    }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<MysqlStore>,
+    {
+        serializer.serialize_i32()
     }
 }
 
@@ -738,6 +837,13 @@ impl Serialize<MysqlStore> for i64 {
     {
         serializer.serialize_i64(*self)
     }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<MysqlStore>,
+    {
+        serializer.serialize_i64()
+    }
 }
 
 impl Serialize<MysqlStore> for u8 {
@@ -746,6 +852,13 @@ impl Serialize<MysqlStore> for u8 {
         S: Serializer<MysqlStore>,
     {
         serializer.serialize_u8(*self)
+    }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<MysqlStore>,
+    {
+        serializer.serialize_u8()
     }
 }
 
@@ -756,6 +869,13 @@ impl Serialize<MysqlStore> for u16 {
     {
         serializer.serialize_u16(*self)
     }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<MysqlStore>,
+    {
+        serializer.serialize_u16()
+    }
 }
 
 impl Serialize<MysqlStore> for u32 {
@@ -764,6 +884,13 @@ impl Serialize<MysqlStore> for u32 {
         S: Serializer<MysqlStore>,
     {
         serializer.serialize_u32(*self)
+    }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<MysqlStore>,
+    {
+        serializer.serialize_u32()
     }
 }
 
@@ -774,6 +901,13 @@ impl Serialize<MysqlStore> for u64 {
     {
         serializer.serialize_u64(*self)
     }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<MysqlStore>,
+    {
+        serializer.serialize_u64()
+    }
 }
 
 impl Serialize<MysqlStore> for f32 {
@@ -782,6 +916,13 @@ impl Serialize<MysqlStore> for f32 {
         S: Serializer<MysqlStore>,
     {
         serializer.serialize_f32(*self)
+    }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<MysqlStore>,
+    {
+        serializer.serialize_f32()
     }
 }
 
@@ -792,6 +933,13 @@ impl Serialize<MysqlStore> for f64 {
     {
         serializer.serialize_f64(*self)
     }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<MysqlStore>,
+    {
+        serializer.serialize_f64()
+    }
 }
 
 impl Serialize<MysqlStore> for str {
@@ -801,6 +949,13 @@ impl Serialize<MysqlStore> for str {
     {
         serializer.serialize_str(self)
     }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<MysqlStore>,
+    {
+        serializer.serialize_str()
+    }
 }
 
 impl Serialize<MysqlStore> for String {
@@ -809,6 +964,13 @@ impl Serialize<MysqlStore> for String {
         S: Serializer<MysqlStore>,
     {
         serializer.serialize_str(self)
+    }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<MysqlStore>,
+    {
+        serializer.serialize_str()
     }
 }
 
@@ -926,13 +1088,36 @@ impl Deserialize<MysqlStore> for String {
 
 #[cfg(test)]
 mod tests {
-    use super::{Comparator, Condition, ConditionsExpr, MysqlSerializer, Query, QueryKind};
-    use robbot::store::Serializer;
+    use super::{
+        Comparator, Condition, ConditionsExpr, MysqlSerializer, MysqlStore, Query, QueryKind,
+    };
+    use robbot::store::{Serializer, TypeSerializer};
+
+    macro_rules! serialize {
+        ($serializer:expr, $key:expr, $val:expr) => {
+            <MysqlSerializer as Serializer<MysqlStore>>::serialize_field(
+                &mut $serializer,
+                $key,
+                $val,
+            )
+            .unwrap();
+        };
+    }
+
+    macro_rules! serialize_type {
+        ($serializer:expr, $key:expr, $t:ty) => {
+            <MysqlSerializer as TypeSerializer<MysqlStore>>::serialize_field::<$t>(
+                &mut $serializer,
+                $key,
+            )
+            .unwrap();
+        };
+    }
 
     #[test]
     fn test_serializer() {
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Create);
-        serializer.serialize_field("id", &3).unwrap();
+        serialize!(serializer, "id", &3);
 
         assert_eq!(
             serializer.query,
@@ -945,7 +1130,7 @@ mod tests {
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Delete);
         serializer.enable_condition();
-        serializer.serialize_field("id", &3).unwrap();
+        serialize!(serializer, "id", &3);
 
         assert_eq!(
             serializer.query,
@@ -962,9 +1147,9 @@ mod tests {
         );
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Insert);
-        serializer.serialize_field("id", &3).unwrap();
-        serializer.serialize_field("name", "Hello World").unwrap();
-        serializer.serialize_field("test", "panic'; DROP").unwrap();
+        serialize!(serializer, "id", &3);
+        serialize!(serializer, "name", "Hello World");
+        serialize!(serializer, "test", "panic'; DROP");
 
         assert_eq!(
             serializer.query,
@@ -984,8 +1169,8 @@ mod tests {
         );
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Select);
-        serializer.serialize_field("id", &0).unwrap();
-        serializer.serialize_field("name", &0).unwrap();
+        serialize!(serializer, "id", &0);
+        serialize!(serializer, "name", &0);
 
         assert_eq!(
             serializer.query,
@@ -999,11 +1184,11 @@ mod tests {
         );
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Select);
-        serializer.serialize_field("id", &0).unwrap();
-        serializer.serialize_field("name", &0).unwrap();
+        serialize!(serializer, "id", &0);
+        serialize!(serializer, "name", &0);
         serializer.enable_condition();
-        serializer.serialize_field("id", &3).unwrap();
-        serializer.serialize_field("name", "abc").unwrap();
+        serialize!(serializer, "id", &3);
+        serialize!(serializer, "name", "abc");
 
         assert_eq!(
             serializer.query,
@@ -1031,7 +1216,7 @@ mod tests {
     #[test]
     fn test_serializer_sql() {
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Create);
-        serializer.serialize_field("id", &3).unwrap();
+        serialize_type!(serializer, "id", i32);
 
         assert_eq!(
             serializer.into_sql(),
@@ -1039,8 +1224,8 @@ mod tests {
         );
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Create);
-        serializer.serialize_field("id", &3).unwrap();
-        serializer.serialize_field("name", &345i64).unwrap();
+        serialize_type!(serializer, "id", i32);
+        serialize_type!(serializer, "name", i64);
 
         assert_eq!(
             serializer.into_sql(),
@@ -1049,14 +1234,14 @@ mod tests {
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Delete);
         serializer.enable_condition();
-        serializer.serialize_field("id", &3).unwrap();
+        serialize!(serializer, "id", &3);
 
         assert_eq!(serializer.into_sql(), "DELETE FROM test WHERE id = 3");
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Delete);
         serializer.enable_condition();
-        serializer.serialize_field("id", &3).unwrap();
-        serializer.serialize_field("name", &345i64).unwrap();
+        serialize!(serializer, "id", &3);
+        serialize!(serializer, "name", &345i64);
 
         assert_eq!(
             serializer.into_sql(),
@@ -1064,13 +1249,13 @@ mod tests {
         );
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Insert);
-        serializer.serialize_field("id", &3).unwrap();
+        serialize!(serializer, "id", &3);
 
         assert_eq!(serializer.into_sql(), "INSERT INTO test (id) VALUES (3)");
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Insert);
-        serializer.serialize_field("id", &3).unwrap();
-        serializer.serialize_field("name", &345i64).unwrap();
+        serialize!(serializer, "id", &3);
+        serialize!(serializer, "name", &345i64);
 
         assert_eq!(
             serializer.into_sql(),
@@ -1078,17 +1263,17 @@ mod tests {
         );
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Select);
-        serializer.serialize_field("id", &0).unwrap();
-        serializer.serialize_field("name", &0).unwrap();
+        serialize!(serializer, "id", &0);
+        serialize!(serializer, "name", &0);
 
         assert_eq!(serializer.into_sql(), "SELECT id,name FROM test");
 
         let mut serializer = MysqlSerializer::new(String::from("test"), QueryKind::Select);
-        serializer.serialize_field("id", &0).unwrap();
-        serializer.serialize_field("name", &0).unwrap();
+        serialize_type!(serializer, "id", u8);
+        serialize_type!(serializer, "name", u8);
         serializer.enable_condition();
-        serializer.serialize_field("id", &3).unwrap();
-        serializer.serialize_field("name", "abc").unwrap();
+        serialize!(serializer, "id", &3);
+        serialize!(serializer, "name", "abc");
 
         assert_eq!(
             serializer.into_sql(),

@@ -100,8 +100,11 @@ where
     pub async fn create<T>(&self) -> Result<()>
     where
         T: StoreData<S> + Default + Send + Sync + 'static,
+        T::DataDescriptor: Default + Send + Sync,
     {
-        self.store().create::<T>().await?;
+        let descriptor = T::DataDescriptor::default();
+
+        self.store().create::<T, _>(descriptor).await?;
         Ok(())
     }
 
@@ -117,26 +120,35 @@ where
     pub async fn get<T, Q>(&self, query: Q) -> Result<Vec<T>>
     where
         T: StoreData<S> + Send + Sync + Default + 'static,
+        T::DataDescriptor: Default + Send + Sync,
         Q: DataQuery<T, S> + Send,
     {
-        let data = self.store().get(query).await?;
+        let descriptor = T::DataDescriptor::default();
+
+        let data = self.store().get(descriptor, query).await?;
         Ok(data)
     }
 
     pub async fn get_all<T>(&self) -> Result<Vec<T>>
     where
         T: StoreData<S> + Send + Sync + Default + 'static,
+        T::DataDescriptor: Default + Send + Sync,
     {
-        let data = self.store().get_all().await?;
+        let descriptor = T::DataDescriptor::default();
+
+        let data = self.store().get_all(descriptor).await?;
         Ok(data)
     }
 
     pub async fn get_one<T, Q>(&self, query: Q) -> Result<Option<T>>
     where
         T: StoreData<S> + Send + Sync + Default + 'static,
+        T::DataDescriptor: Default + Send + Sync,
         Q: DataQuery<T, S> + Send + Sync,
     {
-        let data = self.store().get_one(query).await?;
+        let descriptor = T::DataDescriptor::default();
+
+        let data = self.store().get_one(descriptor, query).await?;
         Ok(data)
     }
 
