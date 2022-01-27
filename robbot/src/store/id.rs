@@ -3,7 +3,7 @@
 pub use snowflake::*;
 
 mod snowflake {
-    use crate::store::{Deserialize, Deserializer, Serialize, Serializer, Store};
+    use crate::store::{Deserialize, Deserializer, Serialize, Serializer, Store, TypeSerializer};
     use chrono::Utc;
 
     use std::fmt::{self, Display, Formatter};
@@ -114,6 +114,13 @@ mod snowflake {
             S: Serializer<T>,
         {
             self.0.serialize(serializer)
+        }
+
+        fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+        where
+            S: TypeSerializer<T>,
+        {
+            u64::serialize_type(serializer)
         }
     }
 

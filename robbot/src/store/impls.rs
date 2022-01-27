@@ -1,7 +1,7 @@
 //! [`Serialize`] and [`Deserialize`] implementations for common
 //! types.
 
-use super::{Deserialize, Deserializer, Serialize, Serializer, Store};
+use super::{Deserialize, Deserializer, Serialize, Serializer, Store, TypeSerializer};
 
 use crate::model::id::{ChannelId, GuildId, MessageId, RoleId, UserId};
 
@@ -16,6 +16,13 @@ where
     {
         self.0.serialize(serializer)
     }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<T>,
+    {
+        u64::serialize_type(serializer)
+    }
 }
 
 impl<T> Serialize<T> for GuildId
@@ -28,6 +35,13 @@ where
         S: Serializer<T>,
     {
         self.0.serialize(serializer)
+    }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<T>,
+    {
+        u64::serialize_type(serializer)
     }
 }
 
@@ -42,6 +56,13 @@ where
     {
         self.0.serialize(serializer)
     }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<T>,
+    {
+        u64::serialize_type(serializer)
+    }
 }
 
 impl<T> Serialize<T> for RoleId
@@ -55,6 +76,13 @@ where
     {
         self.0.serialize(serializer)
     }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<T>,
+    {
+        u64::serialize_type(serializer)
+    }
 }
 
 impl<T> Serialize<T> for UserId
@@ -67,6 +95,13 @@ where
         S: Serializer<T>,
     {
         self.0.serialize(serializer)
+    }
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<T>,
+    {
+        u64::serialize_type(serializer)
     }
 }
 

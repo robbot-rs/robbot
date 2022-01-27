@@ -18,30 +18,33 @@ pub trait Store: Sized {
     ///
     /// Note: Calling `create` might not be required for all
     /// store types.
-    async fn create<T>(&self) -> Result<(), Self::Error>
+    async fn create<T, D>(&self, descriptor: D) -> Result<(), Self::Error>
     where
-        T: StoreData<Self> + Default + Send + Sync + 'static;
+        T: StoreData<Self> + Send + Sync + 'static,
+        D: DataDescriptor<T, Self> + Send + Sync;
 
     /// Deletes all items of type `T` matching the query `Q`
     /// from the store.
     async fn delete<T, Q>(&self, query: Q) -> Result<(), Self::Error>
     where
-        T: StoreData<Self> + Default + Send + Sync + 'static,
+        T: StoreData<Self> + Send + Sync + 'static,
         Q: DataQuery<T, Self> + Send;
 
     /// Returns all items of type `T` matching the query `Q`
     /// from the store. If no items are stored, an empty [`Vec`]
     /// is returned.
-    async fn get<T, Q>(&self, query: Q) -> Result<Vec<T>, Self::Error>
+    async fn get<T, D, Q>(&self, descriptor: D, query: Q) -> Result<Vec<T>, Self::Error>
     where
-        T: StoreData<Self> + Default + Send + Sync + 'static,
+        T: StoreData<Self> + Send + Sync + 'static,
+        D: DataDescriptor<T, Self> + Send + Sync,
         Q: DataQuery<T, Self> + Send;
 
     /// Returns all items of type `T` from the store. If no items
     /// are stored, an empty [`Vec`] is returned.
-    async fn get_all<T>(&self) -> Result<Vec<T>, Self::Error>
+    async fn get_all<T, D>(&self, descriptor: D) -> Result<Vec<T>, Self::Error>
     where
-        T: StoreData<Self> + Default + Send + Sync + 'static;
+        T: StoreData<Self> + Send + Sync + 'static,
+        D: DataDescriptor<T, Self> + Send + Sync;
 
     /// Returns the an item of type `T` matching the query `Q`
     /// from the store. If no items of type `T` are stored, `None`
@@ -49,9 +52,10 @@ pub trait Store: Sized {
     ///
     /// Note: There is no guarantee of how items are ordered. `get_one`
     /// might return different items depending on the store.
-    async fn get_one<T, Q>(&self, query: Q) -> Result<Option<T>, Self::Error>
+    async fn get_one<T, D, Q>(&self, descriptor: D, query: Q) -> Result<Option<T>, Self::Error>
     where
-        T: StoreData<Self> + Default + Send + Sync + 'static,
+        T: StoreData<Self> + Send + Sync + 'static,
+        D: DataDescriptor<T, Self> + Send,
         Q: DataQuery<T, Self> + Send;
 
     /// Inserts a new item into the store.
@@ -116,6 +120,34 @@ where
         T: Sized + Deserialize<S>;
 }
 
+pub trait TypeSerializer<S>
+where
+    S: Store,
+{
+    type Error;
+
+    fn serialize_bool(&mut self) -> Result<(), Self::Error>;
+
+    fn serialize_i8(&mut self) -> Result<(), Self::Error>;
+    fn serialize_i16(&mut self) -> Result<(), Self::Error>;
+    fn serialize_i32(&mut self) -> Result<(), Self::Error>;
+    fn serialize_i64(&mut self) -> Result<(), Self::Error>;
+
+    fn serialize_u8(&mut self) -> Result<(), Self::Error>;
+    fn serialize_u16(&mut self) -> Result<(), Self::Error>;
+    fn serialize_u32(&mut self) -> Result<(), Self::Error>;
+    fn serialize_u64(&mut self) -> Result<(), Self::Error>;
+
+    fn serialize_f32(&mut self) -> Result<(), Self::Error>;
+    fn serialize_f64(&mut self) -> Result<(), Self::Error>;
+
+    fn serialize_str(&mut self) -> Result<(), Self::Error>;
+
+    fn serialize_field<T>(&mut self, key: &'static str) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize<S>;
+}
+
 pub trait Serialize<T>
 where
     T: Store,
@@ -123,6 +155,10 @@ where
     fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
     where
         S: Serializer<T>;
+
+    fn serialize_type<S>(serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<T>;
 }
 
 pub trait Deserialize<T>: Sized
@@ -139,6 +175,7 @@ where
     T: Store,
 {
     type DataQuery: DataQuery<Self, T>;
+    type DataDescriptor: DataDescriptor<Self, T>;
 
     fn resource_name() -> String;
 
@@ -153,6 +190,18 @@ where
     fn query() -> Self::DataQuery;
 }
 
+pub trait DataDescriptor<T, U>
+where
+    T: StoreData<U>,
+    U: Store,
+{
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+    where
+        S: TypeSerializer<U>;
+}
+
+/// A `DataQuery<T, U>` is used to build a query for the [`StoreData`] data `T`
+/// for the [`Store`] `U`.
 pub trait DataQuery<T, U>
 where
     T: StoreData<U>,
