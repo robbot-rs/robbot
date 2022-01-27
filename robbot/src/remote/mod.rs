@@ -386,6 +386,20 @@ where
     }
 }
 
+impl<T> Encode for Box<T>
+where
+    T: Encode,
+{
+    fn encode<W>(&self, encoder: &mut Encoder<W>) -> Result<()>
+    where
+        W: Write,
+    {
+        let inner: &T = &*self;
+
+        inner.encode(encoder)
+    }
+}
+
 impl Decode for bool {
     fn decode<R>(decoder: &mut Decoder<R>) -> Result<Self>
     where
@@ -530,6 +544,19 @@ where
             true => Some(T::decode(decoder)?),
             false => None,
         })
+    }
+}
+
+impl<T> Decode for Box<T>
+where
+    T: Decode,
+{
+    fn decode<R>(decoder: &mut Decoder<R>) -> Result<Self>
+    where
+        R: Read,
+    {
+        let value = T::decode(decoder)?;
+        Ok(Self::new(value))
     }
 }
 
