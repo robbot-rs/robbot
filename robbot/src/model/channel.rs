@@ -4,7 +4,6 @@ use crate::{Decode, Encode};
 use super::id::{ChannelId, EmojiId, GuildId, MessageId};
 use super::user::User;
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use serenity::model::channel::{
@@ -16,14 +15,14 @@ use serenity::model::channel::{
 };
 use serenity::utils::Colour as SColor;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Encode, Decode)]
 pub struct Message {
     pub id: MessageId,
     // pub attachments: Vec<Attachment>,
     pub author: User,
     pub channel_id: ChannelId,
     pub content: String,
-    pub edited_timestamp: Option<DateTime<Utc>>,
+    // pub edited_timestamp: Option<DateTime<Utc>>,
     pub embeds: Vec<Embed>,
     pub guild_id: Option<GuildId>,
     // pub kind: MessageType,
@@ -34,7 +33,7 @@ pub struct Message {
     // pub mentions: Vec<User>,
     pub pinned: bool,
     pub reactions: Vec<MessageReaction>,
-    pub timestamp: DateTime<Utc>,
+    // pub timestamp: DateTime<Utc>,
     pub tts: bool,
     // pub webhook_id: Option<WebhookId>,
     // pub activity: Option<MessageActivity>,
@@ -65,9 +64,9 @@ impl From<serenity::model::channel::Message> for Message {
             author: t.author.into(),
             channel_id: t.channel_id.into(),
             content: t.content,
-            edited_timestamp: t.edited_timestamp,
+            // edited_timestamp: t.edited_timestamp,
             embeds: t.embeds.into_iter().map(|v| v.into()).collect(),
-            guild_id: t.guild_id.and_then(|v| Some(v.into())),
+            guild_id: t.guild_id.map(|v| v.into()),
             // kind: t.kind.into(),
             // member: t.member,
             mention_everyone: t.mention_everyone,
@@ -76,12 +75,12 @@ impl From<serenity::model::channel::Message> for Message {
             // mentions: t.mentions.and_then(),
             pinned: t.pinned,
             reactions: t.reactions.into_iter().map(|v| v.into()).collect(),
-            timestamp: t.timestamp,
+            // timestamp: t.timestamp,
             tts: t.tts,
             // webhook_id: t.webhook_id,
             // activity: t.activity,
             // application: t.application,
-            message_reference: t.message_reference.and_then(|v| Some(v.into())),
+            message_reference: t.message_reference.map(|v| v.into()),
             // flags: t.flags,
             // stickers: t.stickers,
             referenced_message: t.referenced_message.map(|t| Box::new(Message::from(*t))),
@@ -223,18 +222,18 @@ pub enum ReactionType {
 impl From<SEmbed> for Embed {
     fn from(src: SEmbed) -> Self {
         Self {
-            author: src.author.and_then(|v| Some(v.into())),
+            author: src.author.map(|v| v.into()),
             color: src.colour.into(),
             description: src.description,
             fields: src.fields.into_iter().map(|v| v.into()).collect(),
-            footer: src.footer.and_then(|v| Some(v.into())),
-            image: src.image.and_then(|v| Some(v.into())),
+            footer: src.footer.map(|v| v.into()),
+            image: src.image.map(|v| v.into()),
             kind: src.kind,
-            provider: src.provider.and_then(|v| Some(v.into())),
-            thumbnail: src.thumbnail.and_then(|v| Some(v.into())),
-            timestamp: src.timestamp.and_then(|v| Some(v.into())),
+            provider: src.provider.map(|v| v.into()),
+            thumbnail: src.thumbnail.map(|v| v.into()),
+            timestamp: src.timestamp,
             url: src.url,
-            video: src.video.and_then(|v| Some(v.into())),
+            video: src.video.map(|v| v.into()),
         }
     }
 }
@@ -320,9 +319,9 @@ impl From<SColor> for Color {
 impl From<SMessageReference> for MessageReference {
     fn from(src: SMessageReference) -> MessageReference {
         Self {
-            message_id: src.message_id.and_then(|v| Some(v.into())),
+            message_id: src.message_id.map(|v| v.into()),
             channel_id: src.channel_id.into(),
-            guild_id: src.guild_id.and_then(|v| Some(v.into())),
+            guild_id: src.guild_id.map(|v| v.into()),
         }
     }
 }
@@ -360,7 +359,7 @@ pub struct GuildMessage {
     pub author: User,
     pub channel_id: ChannelId,
     pub content: String,
-    pub edited_timestamp: Option<DateTime<Utc>>,
+    // pub edited_timestamp: Option<DateTime<Utc>>,
     pub embeds: Vec<Embed>,
     pub guild_id: GuildId,
     // pub kind: MessageType,
@@ -371,7 +370,7 @@ pub struct GuildMessage {
     // pub mentions: Vec<User>,
     pub pinned: bool,
     pub reactions: Vec<MessageReaction>,
-    pub timestamp: DateTime<Utc>,
+    // pub timestamp: DateTime<Utc>,
     pub tts: bool,
     // pub webhook_id: Option<WebhookId>,
     // pub activity: Option<MessageActivity>,
@@ -408,7 +407,7 @@ impl From<Message> for GuildMessage {
             author: message.author,
             channel_id: message.channel_id,
             content: message.content,
-            edited_timestamp: message.edited_timestamp,
+            // edited_timestamp: message.edited_timestamp,
             embeds: message.embeds,
             guild_id: message.guild_id.unwrap(),
             // kind: message.kind,
@@ -419,7 +418,7 @@ impl From<Message> for GuildMessage {
             // mentions: message.mentions,
             pinned: message.pinned,
             reactions: message.reactions,
-            timestamp: message.timestamp,
+            // timestamp: message.timestamp,
             tts: message.tts,
             // webhook_id: message.webhook_id,
             // activity: message.activity,
