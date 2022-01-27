@@ -1,4 +1,4 @@
-use crate::model::Message;
+use crate::model::channel::Message;
 use serenity::model::{
     channel::{GuildChannel, Reaction},
     guild::Member,
