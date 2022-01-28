@@ -1,12 +1,12 @@
 [package]
 name = "robbot-core"
-version = "0.4.3"
+version = "0.6.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-robbot = { version = "~0.4.3", path = "../robbot" }
+robbot = { version = "0.6.0", path = "../robbot" }
 tokio = { version = "~1.14.0", features = ["full"] }
 serde = { version = "~1.0.126", features = ["derive"] }
 serenity = { version = "~0.10.8", default-features = false, features = ["builder", "cache", "client", "gateway", "http", "model", "rustls_backend"] }

@@ -1,10 +1,10 @@
 [package]
 name = "robbot"
-version = "0.4.3"
+version = "0.6.0"
 edition = "2021"
 
 [dependencies]
-robbot-derive = { version = "0.4.3", path = "../robbot-derive" }
+robbot-derive = { version = "0.6.0", path = "../robbot-derive" }
 tokio = "~1.14.0"
 async-trait = "~0.1.51"
 serenity = { version = "~0.10.9", default-features = false, features = ["builder", "model", "rustls_backend"] }
