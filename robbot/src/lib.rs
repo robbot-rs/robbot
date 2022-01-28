@@ -10,7 +10,7 @@ pub mod remote;
 pub mod store;
 pub mod task;
 
-pub use robbot_derive::{command, Decode, Encode, StoreData};
+pub use robbot_derive::{command, module, Decode, Encode, StoreData};
 pub use {
     arguments::Arguments,
     bot::{Error, Result},
@@ -27,5 +27,5 @@ pub mod prelude {
         context::Context,
         store::StoreData,
     };
-    pub use robbot_derive::{command, StoreData};
+    pub use robbot_derive::{command, module, StoreData};
 }
