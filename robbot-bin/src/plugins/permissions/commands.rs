@@ -9,8 +9,6 @@ use robbot_core::permissions::{RolePermission, UserPermission};
 
 use std::fmt::Write;
 
-pub(super) const COMMANDS: &[fn() -> robbot_core::command::Command] = &[add, list, remove];
-
 #[command(
     description = "Add new permissions to a user or role.",
     usage = "<@User> <Permission...>",
