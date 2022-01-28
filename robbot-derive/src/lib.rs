@@ -1,5 +1,6 @@
 mod decode;
 mod encode;
+mod module;
 mod storedata;
 
 use proc_macro::TokenStream;
@@ -103,4 +104,9 @@ pub fn encode(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Decode)]
 pub fn decode(input: TokenStream) -> TokenStream {
     decode::expand_macro(input)
+}
+
+#[proc_macro]
+pub fn module(input: TokenStream) -> TokenStream {
+    module::expand_macro(input)
 }
