@@ -1,5 +1,6 @@
 mod decode;
 mod encode;
+mod hook;
 mod module;
 mod storedata;
 
@@ -89,6 +90,11 @@ impl Parse for Args {
 
         Ok(Self { args: map })
     }
+}
+
+#[proc_macro_attribute]
+pub fn hook(attr: TokenStream, input: TokenStream) -> TokenStream {
+    hook::expand_macro(attr, input)
 }
 
 #[proc_macro_derive(StoreData)]

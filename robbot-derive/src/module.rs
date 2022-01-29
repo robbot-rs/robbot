@@ -3,7 +3,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use quote::{ToTokens, TokenStreamExt};
 use syn::parse::{Parse, ParseStream, Result};
-use syn::{braced, bracketed, parse_macro_input, Expr, ExprPath, Ident, Token, Type};
+use syn::{braced, bracketed, parse_macro_input, Expr, ExprPath, Ident, Path, Token, Type};
 
 struct Module {
     // This should a &str or a ToString type.
@@ -11,6 +11,7 @@ struct Module {
     cmds: CommandMap,
     store: StoreDataTypes,
     tasks: Tasks,
+    hooks: Hooks,
 }
 
 impl Parse for Module {
@@ -45,11 +46,21 @@ impl Parse for Module {
             tasks = pair.value;
         }
 
+        let mut hooks = Hooks::default();
+        let pair = input.parse::<KeyValuePair<Ident, Hooks>>();
+        if let Ok(pair) = pair {
+            if pair.key != "hooks" {
+                panic!("Fifth key needs to be 'hooks'");
+            }
+            hooks = pair.value;
+        }
+
         Ok(Self {
             _name,
             cmds,
             store,
             tasks,
+            hooks,
         })
     }
 }
@@ -85,14 +96,18 @@ pub fn expand_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let cmds = module.cmds;
     let store = module.store;
     let tasks = module.tasks;
+    let hooks = module.hooks;
 
     let expanded = quote! {
         pub async fn init(state: &::robbot_core::state::State) -> ::robbot::Result {
             for cmd in #cmds {
                 state.commands().load_command(cmd, None)?;
-                #store
-                #tasks
             }
+
+            #store
+            #tasks
+            #hooks
+
 
             Ok(())
         }
@@ -242,6 +257,47 @@ impl ToTokens for Tasks {
                 let res = ::tokio::try_join! {
                     #(
                         state.tasks().add_task(#tasks),
+                    )*
+                };
+                res?;
+            },
+        };
+
+        tokens.append_all(&[token]);
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+struct Hooks {
+    hooks: Vec<Path>,
+}
+
+impl Parse for Hooks {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let content;
+        bracketed!(content in input);
+
+        let mut hooks = Vec::new();
+        while !content.is_empty() {
+            let path = content.parse()?;
+            content.parse::<Token![,]>()?;
+            hooks.push(path);
+        }
+
+        Ok(Self { hooks })
+    }
+}
+
+impl ToTokens for Hooks {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let hooks = self.hooks.clone();
+
+        let token = match hooks.len() {
+            0 => quote! {{}},
+            _ => quote! {
+                let res = ::tokio::try_join! {
+                    #(
+                        #hooks(&state),
                     )*
                 };
                 res?;
