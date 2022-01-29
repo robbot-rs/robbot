@@ -23,6 +23,10 @@ use serenity::{
 };
 use std::sync::{Arc, RwLock};
 
+use serenity::model::guild::Member;
+use serenity::model::id::GuildId;
+use serenity::model::user::User;
+
 #[tokio::main]
 async fn main() {
     let matches = App::new("robbot")
@@ -100,8 +104,42 @@ pub struct Handler {
 
 #[async_trait]
 impl EventHandler for Handler {
+    async fn guild_member_addition(&self, _ctx: Context, guild_id: GuildId, member: Member) {
+        let event = robbot::hook::GuildMemberAdditionData { guild_id, member };
+
+        self.state.hooks().dispatch_event(event).await;
+    }
+
+    async fn guild_member_removal(
+        &self,
+        _ctx: Context,
+        guild_id: GuildId,
+        user: User,
+        member: Option<Member>,
+    ) {
+        let event = robbot::hook::GuildMemberRemovalData {
+            guild_id,
+            user,
+            member,
+        };
+
+        self.state.hooks().dispatch_event(event).await;
+    }
+
+    async fn guild_member_update(&self, _ctx: Context, old_member: Option<Member>, member: Member) {
+        let event = robbot::hook::GuildMemberUpdateData { old_member, member };
+
+        self.state.hooks().dispatch_event(event).await;
+    }
+
     async fn message(&self, raw_ctx: Context, message: Message) {
         let message = robbot::model::channel::Message::from(message);
+
+        {
+            let event = robbot::hook::MessageData(message.clone());
+
+            self.state.hooks().dispatch_event(event).await;
+        }
 
         let msg = match message.content.strip_prefix('!') {
             Some(msg) => msg,
