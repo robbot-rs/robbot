@@ -15,7 +15,7 @@ pub struct PermissionHandler {
 impl PermissionHandler {
     /// Creates a new `PermissionHandler`. The pointer `store` must be valid
     /// for the lifetime of `PermissionHandler`.
-    pub(crate) fn new(store: MainStore<MysqlStore>) -> Self {
+    pub fn new(store: MainStore<MysqlStore>) -> Self {
         Self { store }
     }
 

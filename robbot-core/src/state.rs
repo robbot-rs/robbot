@@ -1,10 +1,12 @@
 use crate::command::CommandHandler;
 use crate::config::Config;
 use crate::context::Context;
-use crate::permissions::PermissionHandler;
 use crate::store::mysql::MysqlStore;
 use crate::store::MainStore;
 use crate::task::TaskScheduler;
+
+#[cfg(feature = "permissions")]
+use crate::permissions::PermissionHandler;
 
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
@@ -14,7 +16,9 @@ pub struct State {
     pub config: Arc<RwLock<Config>>,
     commands: CommandHandler,
     tasks: TaskScheduler,
+    hooks: HookController,
     store: MainStore<MysqlStore>,
+    #[cfg(feature = "permissions")]
     permissions: PermissionHandler,
     pub connect_time: Arc<RwLock<Option<Instant>>>,
     pub context: Arc<RwLock<Option<Context<()>>>>,
@@ -35,6 +39,11 @@ impl State {
         &self.tasks
     }
 
+    /// Returns a reference to the internal [`HookController`].
+    pub fn hooks(&self) -> &HookController {
+        &self.hooks
+    }
+
     /// Returns a reference to the internal [`MainStore`].
     pub fn store(&self) -> &MainStore<MysqlStore> {
         &self.store
@@ -45,6 +54,7 @@ impl State {
     }
 
     /// Returns a reference to the internal [`PermissionHandler`].
+    #[cfg(feature = "permissions")]
     pub fn permissions(&self) -> &PermissionHandler {
         &self.permissions
     }
@@ -60,7 +70,9 @@ impl Default for State {
         let config = Arc::default();
         let commands = CommandHandler::new();
         let tasks = TaskScheduler::new();
+        let hooks = HookController::new();
         let store: MainStore<MysqlStore> = MainStore::default();
+        #[cfg(feature = "permissions")]
         let permissions = PermissionHandler::new(store.clone());
         let connect_time = Arc::default();
         let context = Arc::default();
@@ -69,7 +81,9 @@ impl Default for State {
             config,
             commands,
             tasks,
+            hooks,
             store,
+            #[cfg(feature = "permissions")]
             permissions,
             connect_time,
             context,
