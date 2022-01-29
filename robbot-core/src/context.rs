@@ -16,6 +16,8 @@ use serenity::model::guild::Member;
 use serenity::model::id::{GuildId, UserId};
 use serenity::utils::hashmap_to_json_map;
 
+use robbot::hook::{HookEvent, HookEventWrapper};
+
 /// An alias for `Context<Message>`. This context is received by
 /// command handlers.
 pub type MessageContext = Context<Message>;
@@ -40,6 +42,13 @@ impl<T> Context<T> {
             event,
         }
     }
+}
+
+impl<T> HookEventWrapper for Context<T>
+where
+    T: HookEvent,
+{
+    type HookEvent = T;
 }
 
 #[async_trait]

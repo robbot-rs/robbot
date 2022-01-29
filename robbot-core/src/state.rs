@@ -1,6 +1,7 @@
 use crate::command::CommandHandler;
 use crate::config::Config;
 use crate::context::Context;
+use crate::hook::HookController;
 use crate::store::mysql::MysqlStore;
 use crate::store::MainStore;
 use crate::task::TaskScheduler;
@@ -67,15 +68,16 @@ impl State {
 
 impl Default for State {
     fn default() -> Self {
+        let context: Arc<RwLock<Option<Context<()>>>> = Arc::default();
+
         let config = Arc::default();
         let commands = CommandHandler::new();
         let tasks = TaskScheduler::new();
-        let hooks = HookController::new();
+        let hooks = HookController::new(context.clone());
         let store: MainStore<MysqlStore> = MainStore::default();
         #[cfg(feature = "permissions")]
         let permissions = PermissionHandler::new(store.clone());
         let connect_time = Arc::default();
-        let context = Arc::default();
 
         Self {
             config,
