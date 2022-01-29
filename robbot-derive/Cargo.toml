@@ -1,7 +1,12 @@
 [package]
 name = "robbot-derive"
 version = "0.6.0"
+description = "Proc macros for the robbot crate."
 edition = "2021"
+
+repository = "https://gitlab.com/robbot/robbot"
+authors = ["MrGunflame <mrgunflame@protonmail.com>"]
+license = "GPL-3.0"
 
 [lib]
 proc-macro = true

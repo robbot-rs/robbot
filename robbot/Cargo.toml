@@ -1,7 +1,12 @@
 [package]
 name = "robbot"
 version = "0.6.0"
+description = "robbot"
 edition = "2021"
+
+repository = "https://gitlab.com/robbot/robbot"
+authors = ["MrGunflame <mrgunflame@protonmail.com>"]
+license = "GPL-3.0"
 
 [dependencies]
 robbot-derive = { version = "0.6.0", path = "../robbot-derive" }

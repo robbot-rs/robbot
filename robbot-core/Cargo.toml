@@ -1,9 +1,16 @@
 [package]
 name = "robbot-core"
 version = "0.6.0"
+description = "robbot_core"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+repository = "https://gitlab.com/robbot/robbot"
+authors = ["MrGunflame <mrgunflame@protonmail.com>"]
+license = "GPL-3.0"
+
+[features]
+default = ["permissions"]
+permissions = []
 
 [dependencies]
 robbot = { version = "0.6.0", path = "../robbot" }
