@@ -19,8 +19,10 @@ impl Log for Logger {
 
         if self.enabled(record.metadata()) {
             println!(
-                "[{}] [{}] {}",
+                "[{}] [{}:{}] [{}] {}",
                 now,
+                record.file().unwrap_or("???"),
+                record.line().unwrap_or(0),
                 match record.level() {
                     Level::Error => "ERROR",
                     Level::Warn => "WARN",
