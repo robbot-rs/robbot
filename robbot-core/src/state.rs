@@ -14,7 +14,7 @@ use std::time::Instant;
 
 /// The global shared state.
 pub struct State {
-    pub config: Arc<RwLock<Config>>,
+    pub config: Arc<Config>,
     commands: CommandHandler,
     tasks: TaskScheduler,
     hooks: HookController,
@@ -26,8 +26,31 @@ pub struct State {
 }
 
 impl State {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(config: Config) -> Self {
+        let context: Arc<RwLock<Option<Context<()>>>> = Arc::default();
+
+        let commands = CommandHandler::new();
+        let tasks = TaskScheduler::new();
+        let hooks = HookController::new(context.clone());
+        let store: MainStore<MysqlStore> = MainStore::new(&config.database.connect_string());
+
+        #[cfg(feature = "permissions")]
+        let permissions = PermissionHandler::new(store.clone());
+
+        let connect_time = Arc::default();
+        let config = Arc::new(config);
+
+        Self {
+            config,
+            commands,
+            tasks,
+            hooks,
+            store,
+            #[cfg(feature = "permissions")]
+            permissions,
+            connect_time,
+            context,
+        }
     }
 
     /// Returns a reference to the internal [`CommandHandler`].
@@ -63,32 +86,5 @@ impl State {
     pub fn context(&self) -> Option<Context<()>> {
         let context = self.context.read().unwrap();
         context.clone()
-    }
-}
-
-impl Default for State {
-    fn default() -> Self {
-        let context: Arc<RwLock<Option<Context<()>>>> = Arc::default();
-
-        let config = Arc::default();
-        let commands = CommandHandler::new();
-        let tasks = TaskScheduler::new();
-        let hooks = HookController::new(context.clone());
-        let store: MainStore<MysqlStore> = MainStore::default();
-        #[cfg(feature = "permissions")]
-        let permissions = PermissionHandler::new(store.clone());
-        let connect_time = Arc::default();
-
-        Self {
-            config,
-            commands,
-            tasks,
-            hooks,
-            store,
-            #[cfg(feature = "permissions")]
-            permissions,
-            connect_time,
-            context,
-        }
     }
 }

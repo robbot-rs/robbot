@@ -1,11 +1,11 @@
 pub mod mysql;
 
+use robbot::store::lazy::LazyStore;
 use robbot::store::{DataQuery, Store, StoreData};
 
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::result;
-use std::sync::{Arc, RwLock};
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -42,37 +42,9 @@ impl From<Error> for robbot::Error {
 #[derive(Clone, Debug)]
 pub struct MainStore<S>
 where
-    S: Store,
-{
-    inner: Arc<RwLock<Option<S>>>,
-}
-
-impl<S> MainStore<S>
-where
     S: Store + Clone,
 {
-    /// Closes the inner store, resetting it to `None`.
-    pub fn close(&self) {
-        let mut inner = self.inner.write().unwrap();
-
-        *inner = None;
-    }
-
-    pub fn is_connected(&self) -> bool {
-        let inner = self.inner.read().unwrap();
-        inner.is_some()
-    }
-
-    /// Returns a new clone of the inner store.
-    ///
-    /// # Panics
-    /// Panics when the inner store is not connected.
-    fn store(&self) -> S {
-        let inner = self.inner.read().unwrap();
-        let store = inner.as_ref().unwrap();
-
-        store.clone()
-    }
+    store: LazyStore<S>,
 }
 
 impl<S> MainStore<S>
@@ -80,21 +52,10 @@ where
     S: Store + Clone,
     S::Error: Send + Sync + 'static,
 {
-    pub async fn new(uri: &str) -> Result<Self> {
-        let store = S::connect(uri).await?;
-
-        Ok(Self {
-            inner: Arc::new(RwLock::new(Some(store))),
-        })
-    }
-
-    pub async fn connect(&mut self, uri: &str) -> Result<()> {
-        let store = S::connect(uri).await?;
-
-        let mut inner = self.inner.write().unwrap();
-        *inner = Some(store);
-
-        Ok(())
+    pub fn new(uri: &str) -> Self {
+        Self {
+            store: LazyStore::new(uri),
+        }
     }
 
     pub async fn create<T>(&self) -> Result<()>
@@ -104,7 +65,7 @@ where
     {
         let descriptor = T::DataDescriptor::default();
 
-        self.store().create::<T, _>(descriptor).await?;
+        self.store.create::<T, _>(descriptor).await?;
         Ok(())
     }
 
@@ -113,7 +74,7 @@ where
         T: StoreData<S> + Send + Sync + 'static,
         Q: DataQuery<T, S> + Send,
     {
-        self.store().delete(query).await?;
+        self.store.delete(query).await?;
         Ok(())
     }
 
@@ -125,7 +86,7 @@ where
     {
         let descriptor = T::DataDescriptor::default();
 
-        let data = self.store().get(descriptor, query).await?;
+        let data = self.store.get(descriptor, query).await?;
         Ok(data)
     }
 
@@ -136,7 +97,7 @@ where
     {
         let descriptor = T::DataDescriptor::default();
 
-        let data = self.store().get_all(descriptor).await?;
+        let data = self.store.get_all(descriptor).await?;
         Ok(data)
     }
 
@@ -148,7 +109,7 @@ where
     {
         let descriptor = T::DataDescriptor::default();
 
-        let data = self.store().get_one(descriptor, query).await?;
+        let data = self.store.get_one(descriptor, query).await?;
         Ok(data)
     }
 
@@ -156,18 +117,7 @@ where
     where
         T: StoreData<S> + Send + Sync + 'static,
     {
-        self.store().insert(data).await?;
+        self.store.insert(data).await?;
         Ok(())
-    }
-}
-
-impl<S> Default for MainStore<S>
-where
-    S: Store,
-{
-    fn default() -> Self {
-        Self {
-            inner: Arc::new(RwLock::new(None)),
-        }
     }
 }

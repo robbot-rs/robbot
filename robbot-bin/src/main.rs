@@ -21,7 +21,7 @@ use serenity::{
     client::{bridge::gateway::GatewayIntents, Client, Context, EventHandler},
     model::channel::Message,
 };
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use serenity::model::guild::Member;
 use serenity::model::id::GuildId;
@@ -61,18 +61,7 @@ async fn main() {
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::DIRECT_MESSAGE_REACTIONS;
 
-    let mut state = State::new();
-
-    // Create a store
-    state
-        .store_mut()
-        .connect(&config.database.connect_string())
-        .await
-        .unwrap();
-
-    state.config = Arc::new(RwLock::new(config.clone()));
-
-    let state = Arc::new(state);
+    let state = Arc::new(State::new(config));
 
     log::info!("[CORE] Loading builtin commands");
 
@@ -89,7 +78,7 @@ async fn main() {
 
     log::info!("[BOT] Connecting");
 
-    let mut client = Client::builder(&config.token)
+    let mut client = Client::builder(&state.config.token)
         .intents(gateway_intents)
         .event_handler(Handler { state })
         .await
