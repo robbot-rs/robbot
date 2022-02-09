@@ -1,7 +1,9 @@
+use robbot::Error;
 use robbot_core::context::MessageContext;
 
-use serenity::Error;
-
+/// Returns whether the command caller (determined by `ctx.author`) satisfies
+/// all `permissions`. If `has_permission` returns an Error, the command should
+/// either be aborted or rejected.
 pub async fn has_permission(ctx: &MessageContext, permissions: &[String]) -> Result<bool, Error> {
     // Skip the permission checks if the command
     // requires no permissions.
@@ -9,14 +11,15 @@ pub async fn has_permission(ctx: &MessageContext, permissions: &[String]) -> Res
         return Ok(true);
     }
 
-    // All admins defined in the config file are always
-    // allowed.
-    {
-        let config = ctx.state.config.read().unwrap();
+    // Commands from DMs are always allowed from any user.
+    let guild_id = match ctx.event.guild_id {
+        Some(guild_id) => guild_id,
+        None => return Ok(true),
+    };
 
-        if config.admins.contains(&ctx.event.author.id.0) {
-            return Ok(true);
-        }
+    // All admins defined in the config file are always allowed.
+    if ctx.state.config.admins.contains(&ctx.event.author.id.0) {
+        return Ok(true);
     }
 
     // Get the message author.
@@ -25,16 +28,16 @@ pub async fn has_permission(ctx: &MessageContext, permissions: &[String]) -> Res
         match ctx
             .raw_ctx
             .cache
-            .member(ctx.event.guild_id.unwrap().0, ctx.event.author.id.0)
+            .member(guild_id.0, ctx.event.author.id.0)
             .await
         {
             Some(member) => member,
-            None => ctx
-                .raw_ctx
-                .http
-                .get_member(ctx.event.guild_id.unwrap().0, ctx.event.author.id.0)
-                .await
-                .unwrap(),
+            None => {
+                ctx.raw_ctx
+                    .http
+                    .get_member(guild_id.0, ctx.event.author.id.0)
+                    .await?
+            }
         }
     };
 
@@ -43,8 +46,7 @@ pub async fn has_permission(ctx: &MessageContext, permissions: &[String]) -> Res
             .state
             .permissions()
             .has_permission(&member, permission)
-            .await
-            .unwrap();
+            .await?;
 
         // User is not allowed to run the command.
         if !has_permission {
