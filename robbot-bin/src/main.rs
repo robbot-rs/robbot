@@ -6,6 +6,7 @@ mod macros;
 mod model;
 mod permissions;
 mod plugins;
+mod signal;
 
 /// Path of the default config.toml file.
 const DEFAULT_CONFIG: &str = "./config.toml";
@@ -22,6 +23,8 @@ use serenity::{
     model::channel::Message,
 };
 use std::sync::Arc;
+
+use tokio::task;
 
 use serenity::model::guild::Member;
 use serenity::model::id::GuildId;
@@ -48,6 +51,7 @@ async fn main() {
     // Load the config.toml file.
     let config = config::from_file(config);
 
+    signal::init();
     logger::init(&config);
 
     let gateway_intents = GatewayIntents::GUILDS
@@ -83,6 +87,15 @@ async fn main() {
         .event_handler(Handler { state })
         .await
         .unwrap();
+
+    let shard_manager = client.shard_manager.clone();
+
+    task::spawn(async move {
+        signal::subscribe().await;
+        log::info!("[CORE] Received shutdown");
+
+        shard_manager.lock().await.shutdown_all().await;
+    });
 
     client.start().await.unwrap();
 }

@@ -46,3 +46,6 @@ robbot = { version = "0.6.0", path = "../robbot" }
 toml = "~0.5.8"
 log = { version = "~0.4.14", features = ["std", "serde"] }
 robbot-core = { version = "0.6.0", path = "../robbot-core" }
+
+[target.'cfg(target_family = "unix")'.dependencies]
+nix = "0.23.1"
