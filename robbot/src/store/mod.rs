@@ -1,5 +1,6 @@
 pub mod id;
 mod impls;
+pub mod lazy;
 
 use async_trait::async_trait;
 use std::error::Error;
