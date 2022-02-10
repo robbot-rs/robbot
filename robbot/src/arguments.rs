@@ -1,11 +1,9 @@
 use crate::bot::Error;
-use std::{
-    iter::FromIterator,
-    ops::{Deref, DerefMut, Index, IndexMut},
-    str::FromStr,
-};
 
 use std::fmt::{self, Display, Formatter};
+use std::iter::FromIterator;
+use std::ops::{Deref, DerefMut, Index, IndexMut};
+use std::str::FromStr;
 
 pub trait ArgumentsExt: AsRef<[String]> {
     /// Returns the number of arguments.
@@ -42,10 +40,10 @@ pub trait ArgumentsExt: AsRef<[String]> {
     }
 }
 
-/// An alias for `[Arguments]`.
+/// An alias for [`Arguments`].
 pub type Args<'life0> = Arguments<'life0>;
 
-/// A view into an `OwnedArguments`.
+/// A immutable view into [`OwnedArguments`].
 #[derive(Copy, Clone, Debug)]
 pub struct Arguments<'life0>(&'life0 [String]);
 
@@ -164,16 +162,22 @@ impl<'life0> Display for Arguments<'life0> {
 pub struct OwnedArguments(Vec<String>);
 
 impl OwnedArguments {
+    /// Creates a new empty `OwnedArguments` list.
     pub fn new() -> Self {
         Self(Vec::new())
     }
 
-    pub fn as_args(&self) -> Arguments {
-        Arguments::new(&self.0)
-    }
-
+    /// Creates a new empty `OwnedArguments` list with the specified capacity.
+    ///
+    /// # Panics
+    /// Panics if `capacity` exceeds `isize::MAX` bytes.
     pub fn with_capacity(capacity: usize) -> Self {
         Self(Vec::with_capacity(capacity))
+    }
+
+    /// Returns a new [`Arguments`] slice over all arguments.
+    pub fn as_args(&self) -> Arguments {
+        Arguments::new(&self.0)
     }
 
     /// Returns the number of arguments.
@@ -186,6 +190,7 @@ impl OwnedArguments {
         self.len() == 0
     }
 
+    /// Appends a new argument at the end of the list.
     pub fn push(&mut self, item: String) {
         self.0.push(item);
     }
@@ -290,22 +295,40 @@ impl Display for OwnedArguments {
     }
 }
 
-#[derive(Clone, Debug)]
+/// A wrapper around [`OwnedArguments`] that does not consume
+/// popped arguments.
+///
+/// `CommandArguments` behaves exactly the same as [`OwnedArguments`] from the
+/// outside, but it does not consume any arguments returned from [`pop`] and provides
+/// an extra method [`as_full_args`] which returns an [`Arguments`] view that includes
+/// all arguments that were already popped.
+///
+/// [`pop`]: Self::pop
+/// [`as_full_args`]: Self::as_full_args
+#[derive(Clone, Debug, Default)]
 pub struct CommandArguments {
     owned: OwnedArguments,
-    num: usize,
+    offset: usize,
 }
 
 impl CommandArguments {
-    pub fn new(args: OwnedArguments) -> Self {
-        Self {
-            owned: args,
-            num: 0,
-        }
+    /// Creates a new `CommandArguments` list.
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn as_args(&self) -> Arguments {
         Arguments::new(self.as_ref())
+    }
+
+    /// Returns a reference to the inner [`OwnedArguments`].
+    pub fn as_owned(&self) -> &OwnedArguments {
+        &self.owned
+    }
+
+    /// Returns a mutable reference to the inner [`OwnedArguments`].
+    pub fn as_mut_owned(&mut self) -> &mut OwnedArguments {
+        &mut self.owned
     }
 
     /// Converts `self` into an [`OwnedArguments`] list.
@@ -326,23 +349,23 @@ impl CommandArguments {
 impl AsRef<[String]> for CommandArguments {
     fn as_ref(&self) -> &[String] {
         let slice: &[String] = self.owned.as_ref();
-        &slice[self.num..]
+        &slice[self.offset..]
     }
 }
 
 impl ArgumentsExt for CommandArguments {
     fn len(&self) -> usize {
-        self.owned.len() - self.num
+        self.owned.len() - self.offset
     }
 
     fn get(&self, index: usize) -> Option<&String> {
-        self.owned.get(index + self.num)
+        self.owned.get(index + self.offset)
     }
 
     fn pop(&mut self) -> Option<String> {
-        match self.owned.get(self.num) {
+        match self.owned.get(self.offset) {
             Some(arg) => {
-                self.num += 1;
+                self.offset += 1;
                 Some(arg.to_owned())
             }
             None => None,
@@ -367,6 +390,15 @@ impl Iterator for CommandArguments {
     }
 }
 
+impl From<OwnedArguments> for CommandArguments {
+    fn from(args: OwnedArguments) -> Self {
+        Self {
+            owned: args,
+            offset: 0,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{ArgumentsExt, CommandArguments, OwnedArguments};
@@ -383,7 +415,7 @@ mod tests {
     #[test]
     fn test_command_arguments() {
         let args: OwnedArguments = vec!["Hello", "123", "arg3"].iter().collect();
-        let mut args = CommandArguments::new(args);
+        let mut args = CommandArguments::from(args);
 
         assert_eq!(args, vec!["Hello", "123", "arg3"]);
         assert_eq!(args.len(), 3);

@@ -10,22 +10,22 @@ pub mod remote;
 pub mod store;
 pub mod task;
 
+pub use crate::arguments::Arguments;
+pub use crate::bot::{Error, Result};
+pub use crate::command::Command;
+pub use crate::context::Context;
+pub use crate::store::StoreData;
+pub use crate::task::{Task, TaskSchedule};
+
 pub use robbot_derive::{command, hook, module, Decode, Encode, StoreData};
-pub use {
-    arguments::Arguments,
-    bot::{Error, Result},
-    command::Command,
-    context::Context,
-    store::StoreData,
-    task::{Task, TaskSchedule},
-};
 
 pub mod prelude {
-    pub use crate::{
-        bot::{Error, Error::InvalidCommandUsage, Result},
-        command::Command,
-        context::Context,
-        store::StoreData,
-    };
+    pub use crate::arguments::ArgumentsExt;
+    pub use crate::bot::Error::InvalidCommandUsage;
+    pub use crate::bot::{Error, Result};
+    pub use crate::command::Command;
+    pub use crate::context::Context;
+    pub use crate::store::StoreData;
+
     pub use robbot_derive::{command, hook, module, StoreData};
 }
