@@ -71,3 +71,29 @@ async fn hooks(ctx: MessageContext) -> Result {
 
     Ok(())
 }
+
+#[command(description = "List all enabled modules.")]
+async fn modules(ctx: MessageContext) -> Result {
+    let modules = ctx.state.modules().list_modules();
+    let description = match modules.len() {
+        0 => String::from("No modules loaded."),
+        _ => {
+            let mut string = String::new();
+
+            for module in modules {
+                let _ = writeln!(string, "`{}` (ID `{}`)", module.name, module.id.0);
+            }
+
+            string
+        }
+    };
+
+    ctx.respond(CreateMessage::new(|m| {
+        m.embed(|e| {
+            e.title("__Modules__");
+            e.description(description);
+        });
+    }))
+    .await?;
+    Ok(())
+}

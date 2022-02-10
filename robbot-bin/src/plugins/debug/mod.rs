@@ -11,6 +11,8 @@ module! {
         "debug": {
             commands::parseargs,
             commands::taskqueue,
+            commands::hooks,
+            commands::modules,
         },
     },
 }
