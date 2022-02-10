@@ -7,7 +7,7 @@ use syn::{braced, bracketed, parse_macro_input, Expr, ExprPath, Ident, Path, Tok
 
 struct Module {
     // This should a &str or a ToString type.
-    _name: Expr,
+    name: Expr,
     cmds: CommandMap,
     store: StoreDataTypes,
     tasks: Tasks,
@@ -20,7 +20,7 @@ impl Parse for Module {
         if pair.key != "name" {
             panic!("First key needs to be 'name'");
         }
-        let _name = pair.value;
+        let name = pair.value;
 
         let pair = input.parse::<KeyValuePair<Ident, CommandMap>>()?;
         if pair.key != "cmds" {
@@ -56,7 +56,7 @@ impl Parse for Module {
         }
 
         Ok(Self {
-            _name,
+            name,
             cmds,
             store,
             tasks,
@@ -93,6 +93,7 @@ where
 pub fn expand_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let module = parse_macro_input!(input as Module);
 
+    let name = module.name;
     let cmds = module.cmds;
     let store = module.store;
     let tasks = module.tasks;
@@ -100,8 +101,18 @@ pub fn expand_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let expanded = quote! {
         pub async fn init(state: &::robbot_core::state::State) -> ::robbot::Result {
+            let module = robbot_core::module::Module {
+                name: #name.to_string(),
+                commands: ::std::collections::HashSet::new(),
+            };
+
+            let id = state.modules().add_module(module)?;
+
+
             for cmd in #cmds {
-                state.commands().load_command(cmd, None)?;
+                let options = robbot_core::command::AddOptions::new().module_id(id);
+
+                state.commands().add_commands([cmd], options)?;
             }
 
             #store
