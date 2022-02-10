@@ -8,8 +8,12 @@ use std::{
     borrow::Borrow,
     collections::HashSet,
     hash::{Hash, Hasher},
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
+
+use robbot::module::ModuleId;
+
+use parking_lot::RwLock;
 
 use thiserror::Error;
 
@@ -155,10 +159,11 @@ pub struct LoadedCommand {
     pub sub_commands: HashSet<Self>,
     pub executor: Option<Executor<MessageContext>>,
     pub permissions: Vec<String>,
+    pub module_id: ModuleId,
 }
 
-impl From<Command> for LoadedCommand {
-    fn from(command: Command) -> Self {
+impl LoadedCommand {
+    fn new(command: Command, module_id: ModuleId) -> Self {
         Self {
             name: command.name,
             description: command.description,
@@ -168,10 +173,11 @@ impl From<Command> for LoadedCommand {
             sub_commands: command
                 .sub_commands
                 .into_iter()
-                .map(LoadedCommand::from)
+                .map(|cmd| LoadedCommand::new(cmd, module_id))
                 .collect(),
             executor: command.executor,
             permissions: command.permissions,
+            module_id,
         }
     }
 }
@@ -235,9 +241,164 @@ impl CommandExt for LoadedCommand {
     }
 }
 
+#[derive(Default)]
+pub(crate) struct InnerCommandHandler {
+    commands: RwLock<HashSet<LoadedCommand>>,
+}
+
+impl InnerCommandHandler {
+    pub fn add_commands<I>(&self, commands: I, options: AddOptions) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = Command>,
+    {
+        let commands_set = self.commands.read();
+
+        let root_set = match options.path {
+            Some(path) => {
+                let cmd = match find_command(&commands_set, &mut parse_args(path).as_args()) {
+                    Some(cmd) => cmd,
+                    None => return Err(Error::InvalidPath),
+                };
+
+                &cmd.sub_commands
+            }
+            None => &commands_set,
+        };
+
+        let module_id = match options.module_id {
+            Some(module_id) => module_id,
+            None => ModuleId::default(),
+        };
+
+        for command in commands.into_iter() {
+            let mut command = LoadedCommand::new(command, module_id);
+
+            if let Some(module_id) = options.module_id {
+                command.module_id = module_id;
+            }
+
+            unsafe {
+                #[allow(mutable_transmutes)]
+                let root_set: &mut HashSet<LoadedCommand> = std::mem::transmute(root_set);
+                root_set.insert(command);
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn add_command(&self, command: Command, options: AddOptions) -> Result<(), Error> {
+        self.add_commands([command], options)
+    }
+
+    /// Removes the command with the given `ident`. If a path is provided,
+    /// the path will be used to find the parent command.
+    pub fn remove_commands(&self, options: RemoveOptions) -> Result<(), Error> {
+        let commands = self.commands.write();
+
+        let root = match options.path {
+            Some(path) => {
+                let cmd = match find_command(&commands, &mut parse_args(path).as_args()) {
+                    Some(cmd) => cmd,
+                    None => return Err(Error::InvalidPath),
+                };
+
+                &cmd.sub_commands
+            }
+            None => &commands,
+        };
+
+        // Convert &HashSet into &mut HashSet. This is a safe operation
+        // as `self.commands` is write locked and changing `Command.sub_commands`
+        // doesn't change it's hash.
+        let root: &mut HashSet<LoadedCommand> = unsafe {
+            #[allow(mutable_transmutes)]
+            std::mem::transmute(root)
+        };
+
+        // When a name is given only remove a single command.
+        // Otherwise remove all matching commands in `root`.
+        match options.name {
+            Some(name) => {
+                // Get the command from the collection or return Ok
+                // when it is not found.
+                let cmd = match root.get(name) {
+                    Some(cmd) => cmd,
+                    None => return Ok(()),
+                };
+
+                if let Some(module_id) = options.module_id {
+                    if cmd.module_id == module_id {
+                        root.remove(name);
+                    }
+                }
+            }
+            None => {
+                // Retain only elments with a different module_id.
+                root.retain(|cmd| match options.module_id {
+                    Some(module_id) => cmd.module_id != module_id,
+                    None => false,
+                });
+            }
+        };
+
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct AddOptions<'a> {
+    path: Option<&'a str>,
+    module_id: Option<ModuleId>,
+}
+
+impl<'a> AddOptions<'a> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn path(mut self, path: &'a str) -> Self {
+        self.path = Some(path);
+        self
+    }
+
+    pub fn module_id(mut self, module_id: ModuleId) -> Self {
+        self.module_id = Some(module_id);
+        self
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct RemoveOptions<'a, 'b> {
+    pub name: Option<&'a str>,
+    pub path: Option<&'b str>,
+    pub module_id: Option<ModuleId>,
+}
+
+impl<'a, 'b> RemoveOptions<'a, 'b> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn name(mut self, name: &'a str) -> Self {
+        self.name = Some(name);
+        self
+    }
+
+    pub fn path(mut self, path: &'b str) -> Self {
+        self.path = Some(path);
+        self
+    }
+
+    pub fn module_id(mut self, module_id: ModuleId) -> Self {
+        self.module_id = Some(module_id);
+        self
+    }
+}
+
 #[derive(Clone, Default)]
 pub struct CommandHandler {
-    inner: Arc<RwLock<HashSet<LoadedCommand>>>,
+    pub(crate) inner: Arc<InnerCommandHandler>,
 }
 
 impl CommandHandler {
@@ -253,76 +414,41 @@ impl CommandHandler {
     where
         A: ArgumentsExt,
     {
-        let cmds = self.inner.read().unwrap();
+        let cmds = self.inner.commands.read();
         let command = find_command(&cmds, args)?;
         Some(command.clone())
     }
 
     /// Returns a list all command's names in the command root.
     pub fn list_root_commands(&self) -> Vec<String> {
-        let cmds = self.inner.read().unwrap();
+        let cmds = self.inner.commands.read();
         cmds.iter().map(|c| c.name.clone()).collect()
+    }
+
+    pub fn add_commands<I>(&self, commands: I, options: AddOptions) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = Command>,
+    {
+        self.inner.add_commands(commands, options)
     }
 
     /// Loads a single command. If `path` is `None`, the command
     /// will be loaded in this scope.
     pub fn load_command(&self, command: Command, path: Option<&str>) -> Result<(), Error> {
-        let cmds = self.inner.write().unwrap();
+        let mut opts = AddOptions::new();
 
-        let command = LoadedCommand::from(command);
-
-        let root_set = match path {
-            Some(path) => {
-                let cmd = find_command(&cmds, &mut parse_args(path).as_args())
-                    .ok_or(Error::InvalidPath)?;
-                &cmd.sub_commands
-            }
-            None => &cmds,
-        };
-
-        if root_set.contains(&command) {
-            return Err(Error::DuplicateName);
+        if let Some(path) = path {
+            opts = opts.path(path);
         }
 
-        // Convert &HashSet into &mut HashSet. This is a safe operation
-        // as `self.commands` is write locked and changing `Command.sub_commands`
-        // doesn't change it's hash.
-        unsafe {
-            #[allow(mutable_transmutes)]
-            let root_set: &mut HashSet<LoadedCommand> = std::mem::transmute(root_set);
-            root_set.insert(command);
-        }
-
-        Ok(())
+        self.inner.add_command(command, opts)
     }
 
-    /// Removes the command with the given `ident`. If a path is provided,
-    /// the path will be used to find the parent command.
     pub fn remove_command(&self, ident: &str, path: Option<&str>) -> Result<(), Error> {
-        let mut commands = self.inner.write().unwrap();
+        let mut opts = RemoveOptions::default().name(ident);
+        opts.path = path;
 
-        let root = match path {
-            Some(path) => {
-                let cmd = match find_command(&commands, &mut parse_args(path).as_args()) {
-                    Some(cmd) => cmd,
-                    None => return Err(Error::InvalidPath),
-                };
-
-                &cmd.sub_commands
-            }
-            None => &mut commands,
-        };
-
-        unsafe {
-            #[allow(mutable_transmutes)]
-            let root: &mut HashSet<LoadedCommand> = std::mem::transmute(root);
-
-            if !root.remove(ident) {
-                return Err(Error::InvalidPath);
-            }
-        }
-
-        Ok(())
+        self.inner.remove_commands(opts)
     }
 }
 

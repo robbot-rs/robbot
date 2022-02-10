@@ -38,7 +38,7 @@ impl<T> Context<T> {
         Self {
             raw_ctx,
             state,
-            args: CommandArguments::new(OwnedArguments::new()),
+            args: CommandArguments::from(OwnedArguments::new()),
             event,
         }
     }

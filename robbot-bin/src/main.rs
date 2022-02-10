@@ -149,7 +149,7 @@ impl EventHandler for Handler {
         };
 
         let mut args = parse_args(msg);
-        let mut cmd_args = CommandArguments::new(args.clone());
+        let mut cmd_args = CommandArguments::from(args.clone());
 
         let cmd = match self.state.commands().get_command(&mut cmd_args) {
             Some(cmd) => cmd,

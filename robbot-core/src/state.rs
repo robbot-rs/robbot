@@ -2,6 +2,7 @@ use crate::command::CommandHandler;
 use crate::config::Config;
 use crate::context::Context;
 use crate::hook::HookController;
+use crate::module::ModuleHandler;
 use crate::store::mysql::MysqlStore;
 use crate::store::MainStore;
 use crate::task::TaskScheduler;
@@ -18,6 +19,7 @@ pub struct State {
     commands: CommandHandler,
     tasks: TaskScheduler,
     hooks: HookController,
+    modules: ModuleHandler,
     store: MainStore<MysqlStore>,
     #[cfg(feature = "permissions")]
     permissions: PermissionHandler,
@@ -32,6 +34,9 @@ impl State {
         let commands = CommandHandler::new();
         let tasks = TaskScheduler::new();
         let hooks = HookController::new(context.clone());
+
+        let modules = ModuleHandler::new(commands.clone());
+
         let store: MainStore<MysqlStore> = MainStore::new(&config.database.connect_string());
 
         #[cfg(feature = "permissions")]
@@ -45,6 +50,7 @@ impl State {
             commands,
             tasks,
             hooks,
+            modules,
             store,
             #[cfg(feature = "permissions")]
             permissions,
@@ -66,6 +72,11 @@ impl State {
     /// Returns a reference to the internal [`HookController`].
     pub fn hooks(&self) -> &HookController {
         &self.hooks
+    }
+
+    /// Returns a reference to the internal [`ModuleHandler`].
+    pub fn modules(&self) -> &ModuleHandler {
+        &self.modules
     }
 
     /// Returns a reference to the internal [`MainStore`].

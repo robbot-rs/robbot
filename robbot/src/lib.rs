@@ -6,6 +6,7 @@ pub mod context;
 pub mod executor;
 pub mod hook;
 pub mod model;
+pub mod module;
 pub mod remote;
 pub mod store;
 pub mod task;
