@@ -5,59 +5,68 @@ use quote::{ToTokens, TokenStreamExt};
 use syn::parse::{Parse, ParseStream, Result};
 use syn::{braced, bracketed, parse_macro_input, Expr, ExprPath, Ident, Path, Token, Type};
 
+pub fn expand_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let module = parse_macro_input!(input as Module);
+
+    proc_macro::TokenStream::from(module.into_token_stream())
+}
+
+#[derive(Debug)]
 struct Module {
     // This should a &str or a ToString type.
     name: Expr,
-    cmds: CommandMap,
-    store: StoreDataTypes,
-    tasks: Tasks,
-    hooks: Hooks,
+    commands: Option<CommandMap>,
+    store: Option<StoreDataTypes>,
+    tasks: Option<Tasks>,
+    hooks: Option<Hooks>,
 }
 
 impl Parse for Module {
     fn parse(input: ParseStream) -> Result<Self> {
-        let pair = input.parse::<KeyValuePair<Ident, Expr>>()?;
-        if pair.key != "name" {
-            panic!("First key needs to be 'name'");
-        }
-        let name = pair.value;
+        let mut name: Option<Expr> = None;
+        let mut commands: Option<CommandMap> = None;
+        let mut store: Option<StoreDataTypes> = None;
+        let mut tasks: Option<Tasks> = None;
+        let mut hooks: Option<Hooks> = None;
 
-        let pair = input.parse::<KeyValuePair<Ident, CommandMap>>()?;
-        if pair.key != "cmds" {
-            panic!("Second key needs to be 'cmds'");
-        }
-        let cmds = pair.value;
-
-        let mut store = StoreDataTypes::default();
-        let pair = input.parse::<KeyValuePair<Ident, StoreDataTypes>>();
-        if let Ok(pair) = pair {
-            if pair.key != "store" {
-                panic!("Third key needs to be 'store'");
+        for _ in ["name", "cmds", "store", "tasks", "hooks"] {
+            if input.is_empty() {
+                break;
             }
-            store = pair.value;
+
+            let ident: Ident = input.fork().parse()?;
+
+            match ident.to_string().as_str() {
+                "name" => name = Some(input.parse::<KeyValuePair<Ident, Expr>>()?.into_value()),
+                "cmds" => {
+                    commands = Some(
+                        input
+                            .parse::<KeyValuePair<Ident, CommandMap>>()?
+                            .into_value(),
+                    )
+                }
+                "store" => {
+                    store = Some(
+                        input
+                            .parse::<KeyValuePair<Ident, StoreDataTypes>>()?
+                            .into_value(),
+                    )
+                }
+                "tasks" => tasks = Some(input.parse::<KeyValuePair<Ident, Tasks>>()?.into_value()),
+                "hooks" => hooks = Some(input.parse::<KeyValuePair<Ident, Hooks>>()?.into_value()),
+                _ => panic!("Invalid key: {}", ident),
+            }
         }
 
-        let mut tasks = Tasks::default();
-        let pair = input.parse::<KeyValuePair<Ident, Tasks>>();
-        if let Ok(pair) = pair {
-            if pair.key != "tasks" {
-                panic!("Fourth key needs to be 'tasks'");
-            }
-            tasks = pair.value;
-        }
-
-        let mut hooks = Hooks::default();
-        let pair = input.parse::<KeyValuePair<Ident, Hooks>>();
-        if let Ok(pair) = pair {
-            if pair.key != "hooks" {
-                panic!("Fifth key needs to be 'hooks'");
-            }
-            hooks = pair.value;
-        }
+        // A name always needs to be given.
+        let name = match name {
+            Some(name) => name,
+            None => panic!("No name value given for module"),
+        };
 
         Ok(Self {
             name,
-            cmds,
+            commands,
             store,
             tasks,
             hooks,
@@ -65,14 +74,62 @@ impl Parse for Module {
     }
 }
 
+impl ToTokens for Module {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let Self {
+            name,
+            commands,
+            store,
+            tasks,
+            hooks,
+        } = self;
+
+        let output = quote! {
+            pub async fn init(state: &robbot_core::state::State) -> robbot::Result {
+                let module = robbot_core::module::Module {
+                    name: #name.to_string(),
+                    commands: std::collections::HashSet::new(),
+                };
+
+                let id = state.modules().add_module(module)?;
+
+                for cmd in #commands {
+                    let options = robbot_core::command::AddOptions::new().module_id(id);
+
+                    state.commands().add_commands([cmd], options)?;
+                }
+
+                #store
+                #tasks
+                #hooks
+
+                Ok(())
+            }
+        };
+
+        tokens.append_all(output)
+    }
+}
+
+/// A single key-value pair in the format `name: key`.
 #[derive(Clone, Debug)]
 struct KeyValuePair<K, V>
 where
     K: Parse,
     V: Parse,
 {
-    key: K,
+    _key: K,
     value: V,
+}
+
+impl<K, V> KeyValuePair<K, V>
+where
+    K: Parse,
+    V: Parse,
+{
+    fn into_value(self) -> V {
+        self.value
+    }
 }
 
 impl<K, V> Parse for KeyValuePair<K, V>
@@ -81,52 +138,20 @@ where
     V: Parse,
 {
     fn parse(input: ParseStream) -> Result<Self> {
-        let key = input.parse()?;
+        let _key = input.parse()?;
         input.parse::<Token![:]>()?;
         let value = input.parse()?;
-        input.parse::<Token![,]>()?;
 
-        Ok(Self { key, value })
+        // Parse optional `,` token at the end.
+        if input.peek(Token![,]) {
+            input.parse::<Token![,]>()?;
+        }
+
+        Ok(Self { _key, value })
     }
 }
 
-pub fn expand_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let module = parse_macro_input!(input as Module);
-
-    let name = module.name;
-    let cmds = module.cmds;
-    let store = module.store;
-    let tasks = module.tasks;
-    let hooks = module.hooks;
-
-    let expanded = quote! {
-        pub async fn init(state: &::robbot_core::state::State) -> ::robbot::Result {
-            let module = robbot_core::module::Module {
-                name: #name.to_string(),
-                commands: ::std::collections::HashSet::new(),
-            };
-
-            let id = state.modules().add_module(module)?;
-
-
-            for cmd in #cmds {
-                let options = robbot_core::command::AddOptions::new().module_id(id);
-
-                state.commands().add_commands([cmd], options)?;
-            }
-
-            #store
-            #tasks
-            #hooks
-
-
-            Ok(())
-        }
-    };
-
-    proc_macro::TokenStream::from(expanded)
-}
-
+#[derive(Debug)]
 enum CommandMap {
     List(Vec<ExprPath>),
     Command(Literal, Box<Self>),
