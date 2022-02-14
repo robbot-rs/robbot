@@ -14,8 +14,8 @@ admins = []
 [database]
 # Currently only supports myqsl.
 driver = "mysql"
-host = "127.0.0.1"
+host = "10.0.0.2"
 port = 3306
 user = "robbot"
-password = "robbot"
-database = "robbot"
+password = "1234"
+database = "robbot3"
