@@ -1,26 +1,4 @@
 #[macro_export]
-macro_rules! command {
-    ($name:ident $(, description: $description:expr)? $(, arguments: $arguments:expr)? $(, executor: $executor:expr)?$(,)?) => {
-        fn $name() -> robbot_core::command::Command {
-            let mut cmd = robbot_core::command::Command::new(stringify!($name).to_owned());
-
-            $(
-                cmd.description = $description.to_string();
-            )?
-
-            $(
-                use ::robbot::executor::Executor;
-
-                let executor = robbot_core::executor::Executor::from_fn($executor);
-                cmd.executor = Some(executor);
-            )?
-
-            cmd
-        }
-    };
-}
-
-#[macro_export]
 macro_rules! task {
     ($name:ident, $schedule:expr, $executor:expr $(,)?) => {
         fn $name() -> robbot_core::task::Task {
@@ -32,37 +10,6 @@ macro_rules! task {
                 executor: robbot_core::executor::Executor::from_fn($executor),
                 on_load: true,
             }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! hook {
-    ($name:ident, $event:expr, $executor:expr $(,)?) => {
-        fn $name(state: ::std::sync::Arc<$crate::core::state::State>) {
-            use ::robbot::executor::Executor as _;
-
-            let hook = robbot::hook::Hook {
-                name: stringify!($name).to_owned(),
-                on_event: $event,
-            };
-
-            ::tokio::task::spawn(async move {
-                let mut rx = state.add_hook(hook).await;
-
-                ::tokio::task::spawn(async move {
-                    let executor = $crate::core::executor::Executor::from_fn($executor);
-                    while let Ok(event) = rx.recv().await {
-                        let ctx = match event {
-                            $crate::core::hook::Event::GuildMemberUpdate(ctx) => ctx,
-                            _ => unreachable!(),
-                        };
-                        if let Err(err) = executor.send(*ctx).await {
-                            eprintln!("[Hook] Hook execution failed: {:?}", err);
-                        }
-                    }
-                });
-            });
         }
     };
 }
