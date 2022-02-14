@@ -6,6 +6,17 @@ CARGO := cargo
 build:
 	ROBBOT_VERSION=${ROBBOT_VERSION} ROBBOT_BUILT=${ROBBOT_BUILT} $(CARGO) build --release
 
+fmt:
+	cargo fmt --all -- --check
+
+clippy:
+	cargo clippy --all-targets --all-features -- -D warnings
+
+test:
+	cargo test
+
+test-all: fmt clippy test
+
 # Build Robbot against the current version of libc6 that comes
 # with the debian buster release.
 debian-buster:
