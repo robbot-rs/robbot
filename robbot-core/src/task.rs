@@ -1,6 +1,10 @@
-use crate::{context::Context, executor::Executor};
-use chrono::{DateTime, Duration, TimeZone, Utc};
+use crate::context::Context;
+use crate::executor::Executor;
+
 use robbot::executor::Executor as ExecutorExt;
+use robbot::task::TaskSchedule;
+
+use chrono::{DateTime, Duration, TimeZone, Utc};
 use std::collections::VecDeque;
 use tokio::{
     select,
@@ -36,10 +40,7 @@ impl Task {
     where
         T: TimeZone,
     {
-        match self.schedule {
-            TaskSchedule::Interval(duration) => time + duration,
-            TaskSchedule::RepeatTime(_) => unimplemented!(),
-        }
+        self.schedule.advance(time).unwrap()
     }
 }
 
@@ -53,12 +54,6 @@ impl From<LoadedTask> for Task {
             on_load: false,
         }
     }
-}
-
-#[derive(Clone, Debug)]
-pub enum TaskSchedule {
-    Interval(Duration),
-    RepeatTime(DateTime<Utc>),
 }
 
 #[derive(Clone)]
