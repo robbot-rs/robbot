@@ -4,26 +4,28 @@ use crate::executor::Executor;
 use robbot::executor::Executor as ExecutorExt;
 use robbot::task::TaskSchedule;
 
-use chrono::{DateTime, Duration, TimeZone, Utc};
+use chrono::{DateTime, Duration, Utc};
+use tokio::sync::{mpsc, oneshot};
+use tokio::{select, task, time};
+
 use std::collections::VecDeque;
-use tokio::{
-    select,
-    sync::{mpsc, oneshot},
-    task, time,
-};
 
 const SCHEDULER_MESSAGEQUEUE_SIZE: usize = 32;
 
+/// A `Task` is a automatically and repeated job. Tasks can be used to handle background
+/// jobs based on time intervals or specific times. A Task's schedule is defined using
+/// [`TaskSchedule`].
 #[derive(Clone)]
 pub struct Task {
     pub name: String,
     pub schedule: TaskSchedule,
     pub executor: Executor<Context<()>>,
-
+    /// Makes the task execute immediately when it is added.
     pub on_load: bool,
 }
 
 impl Task {
+    /// Creates a new `Task`.
     pub fn new<T>(name: T, schedule: TaskSchedule, executor: Executor<Context<()>>) -> Self
     where
         T: ToString,
@@ -34,13 +36,6 @@ impl Task {
             executor,
             on_load: false,
         }
-    }
-
-    pub fn next_execution<T>(&self, time: DateTime<T>) -> DateTime<T>
-    where
-        T: TimeZone,
-    {
-        self.schedule.advance(time).unwrap()
     }
 }
 
@@ -61,37 +56,25 @@ struct LoadedTask {
     name: String,
     schedule: TaskSchedule,
     executor: Executor<Context<()>>,
-
-    execution_time: DateTime<Utc>,
+    /// The time the task should be called again. Used to order the task queue.
+    next_execution_time: DateTime<Utc>,
 }
 
 impl LoadedTask {
-    pub fn next_execution<T>(&self, time: DateTime<T>) -> DateTime<T>
-    where
-        T: TimeZone,
-    {
-        match self.schedule {
-            TaskSchedule::Interval(duration) => time + duration,
-            TaskSchedule::RepeatTime(_) => unimplemented!(),
-        }
-    }
-}
-
-impl From<Task> for LoadedTask {
-    fn from(task: Task) -> LoadedTask {
-        let now = Utc::now();
-
-        let execution_time = match task.on_load {
+    /// Converts a [`Task`] into a `LoadedTask` using `now` as the current time.
+    /// Returns `None` if a task will never execute.
+    fn from(task: Task, now: DateTime<Utc>) -> Option<Self> {
+        let next_execution_time = match task.on_load {
             true => now,
-            false => task.next_execution(now),
+            false => task.schedule.advance(now)?,
         };
 
-        Self {
+        Some(Self {
             name: task.name,
             schedule: task.schedule,
             executor: task.executor,
-            execution_time,
-        }
+            next_execution_time,
+        })
     }
 }
 
@@ -102,14 +85,9 @@ struct TaskQueue {
 
 impl TaskQueue {
     /// Pushes a new task into the queue.
-    fn push<T>(&mut self, task: T)
-    where
-        T: Into<LoadedTask>,
-    {
-        let task = task.into();
-
+    fn push(&mut self, task: LoadedTask) {
         for (i, t) in self.tasks.iter().enumerate() {
-            if task.execution_time < t.execution_time {
+            if task.next_execution_time < t.next_execution_time {
                 self.tasks.push_front(task);
                 self.tasks.swap(i, 0);
                 return;
@@ -131,7 +109,7 @@ impl TaskQueue {
     async fn await_pop(&mut self) -> Option<LoadedTask> {
         let now = Utc::now();
 
-        let time_wait = self.get(0)?.execution_time - now;
+        let time_wait = self.get(0)?.next_execution_time - now;
 
         if time_wait > Duration::seconds(0) {
             time::sleep(time_wait.to_std().unwrap()).await;
@@ -167,7 +145,12 @@ impl InnerTaskScheduler {
 
     fn add_task(&mut self, task: Task) {
         log::info!("[TASK] Added new task '{}'", task.name);
-        self.tasks.push(task);
+
+        // Only add the task if it ever executes.
+        let now = Utc::now();
+        if let Some(task) = LoadedTask::from(task, now) {
+            self.tasks.push(task);
+        }
     }
 
     fn get_tasks(&self, tx: oneshot::Sender<Vec<(Task, DateTime<Utc>)>>) {
@@ -176,7 +159,7 @@ impl InnerTaskScheduler {
             .tasks
             .clone()
             .into_iter()
-            .map(|task| (task.clone().into(), task.execution_time))
+            .map(|task| (task.clone().into(), task.next_execution_time))
             .collect();
 
         let _ = tx.send(tasks);
@@ -206,10 +189,14 @@ impl InnerTaskScheduler {
         }
 
         let now = Utc::now();
-        task.execution_time = task.next_execution(now);
 
-        // Put the task back into the queue.
-        self.tasks.push(task);
+        // Put the task back into the queue. If `advance` returns `None` the task will
+        // never execute again, so ignore it.
+        if let Some(next_execution_time) = task.schedule.advance(now) {
+            task.next_execution_time = next_execution_time;
+
+            self.tasks.push(task);
+        }
     }
 
     async fn handle_message(&mut self, message: TaskSchedulerMessage) {
@@ -277,6 +264,9 @@ impl TaskScheduler {
         rx.await.unwrap()
     }
 
+    /// Updates the `Context` for the task executor. If the context was previously
+    /// `None` and is set to a non-`None` value, the executor will start executing
+    /// tasks.
     pub async fn update_context(&self, ctx: Option<Context<()>>) {
         let _ = self.tx.send(TaskSchedulerMessage::UpdateContext(ctx)).await;
     }
