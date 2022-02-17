@@ -1,23 +1,21 @@
-use crate::{
-    context::MessageContext,
-    executor::Executor,
-    router::{find_command, parse_args},
-};
-use robbot::{arguments::ArgumentsExt, command::Command as CommandExt};
-use std::{
-    borrow::Borrow,
-    collections::HashSet,
-    hash::{Hash, Hasher},
-    sync::Arc,
-};
+#![allow(clippy::mutable_key_type)]
 
-use std::cell::UnsafeCell;
+use crate::context::MessageContext;
+use crate::executor::Executor;
+use crate::router::{find_command, parse_args};
 
+use robbot::arguments::ArgumentsExt;
+use robbot::command::Command as CommandExt;
 use robbot::module::ModuleId;
 
 use parking_lot::RwLock;
-
 use thiserror::Error;
+
+use std::borrow::Borrow;
+use std::cell::UnsafeCell;
+use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Command {
@@ -223,48 +221,48 @@ impl SubCommand {
         &self.get().name
     }
 
+    pub fn name_mut(&mut self) -> &mut String {
+        &mut self.cell.get_mut().name
+    }
+
     pub fn description(&self) -> &str {
         &self.get().description
     }
 
-    pub fn description_mut(&self) -> &mut String {
-        // SAFETY: Changing the description field doesn't change the hash.
-        unsafe { &mut self.get_mut().description }
+    pub fn description_mut(&mut self) -> &mut String {
+        &mut self.cell.get_mut().description
     }
 
     pub fn usage(&self) -> &str {
         &self.get().usage
     }
 
-    pub fn usage_mut(&self) -> &mut String {
-        // SAFETY: Changing the usage field doesn't change the hash.
-        unsafe { &mut self.get_mut().usage }
+    pub fn usage_mut(&mut self) -> &mut String {
+        &mut self.cell.get_mut().usage
     }
 
     pub fn example(&self) -> &str {
         &self.get().example
     }
 
-    pub fn example_mut(&self) -> &mut String {
-        // SAFETY: Changing the example field doesn't change the hash
-        unsafe { &mut self.get_mut().example }
+    pub fn example_mut(&mut self) -> &mut String {
+        &mut self.cell.get_mut().example
     }
 
     pub fn guild_only(&self) -> bool {
         self.get().guild_only
     }
 
-    pub fn guild_only_mut(&self) -> &bool {
-        unsafe { &mut self.get_mut().guild_only }
+    pub fn guild_only_mut(&mut self) -> &mut bool {
+        &mut self.cell.get_mut().guild_only
     }
 
     pub fn sub_commands(&self) -> &HashSet<SubCommand> {
         &self.get().sub_commands
     }
 
-    pub fn sub_commands_mut(&self) -> &mut HashSet<SubCommand> {
-        // SAFETY: Changing the sub_commands field doesn't change the hash.
-        unsafe { &mut self.get_mut().sub_commands }
+    pub fn sub_commands_mut(&mut self) -> &mut HashSet<SubCommand> {
+        &mut self.cell.get_mut().sub_commands
     }
 
     pub fn get(&self) -> &LoadedCommand {
@@ -277,6 +275,7 @@ impl SubCommand {
     ///
     /// The value might be in a HashSet. Changing the value must not
     /// change the value's hash.
+    #[allow(clippy::mut_from_ref)]
     pub unsafe fn get_mut(&self) -> &mut LoadedCommand {
         &mut *self.cell.get()
     }
@@ -391,7 +390,9 @@ impl InnerCommandHandler {
                     None => return Err(Error::InvalidPath),
                 };
 
-                cmd.sub_commands_mut()
+                // SAFETY: The current thread has exclusive access to `commands_set` due to the
+                // write lock. Also changing the `sub_commands` field has no effect on the hash.
+                unsafe { &mut cmd.get_mut().sub_commands }
             }
             None => &mut commands_set,
         };
@@ -430,7 +431,9 @@ impl InnerCommandHandler {
                     None => return Err(Error::InvalidPath),
                 };
 
-                cmd.sub_commands_mut()
+                // SAFETY: The current thread has exclusive access to `commands_set` due to the
+                // write lock. Also changing the `sub_commands` field has no effect on the hash.
+                unsafe { &mut cmd.get_mut().sub_commands }
             }
             None => &mut commands,
         };
