@@ -11,6 +11,8 @@ use std::{
     sync::Arc,
 };
 
+use std::cell::UnsafeCell;
+
 use robbot::module::ModuleId;
 
 use parking_lot::RwLock;
@@ -156,7 +158,7 @@ pub struct LoadedCommand {
     pub usage: String,
     pub example: String,
     pub guild_only: bool,
-    pub sub_commands: HashSet<Self>,
+    pub sub_commands: HashSet<SubCommand>,
     pub executor: Option<Executor<MessageContext>>,
     pub permissions: Vec<String>,
     pub module_id: ModuleId,
@@ -173,7 +175,7 @@ impl LoadedCommand {
             sub_commands: command
                 .sub_commands
                 .into_iter()
-                .map(|cmd| LoadedCommand::new(cmd, module_id))
+                .map(|cmd| SubCommand::new(LoadedCommand::new(cmd, module_id)))
                 .collect(),
             executor: command.executor,
             permissions: command.permissions,
@@ -205,45 +207,174 @@ impl Hash for LoadedCommand {
     }
 }
 
-impl CommandExt for LoadedCommand {
-    type Executor = Executor<MessageContext>;
+#[derive(Debug)]
+pub struct SubCommand {
+    cell: UnsafeCell<LoadedCommand>,
+}
 
-    fn name(&self) -> &str {
-        &self.name
+impl SubCommand {
+    pub fn new(command: LoadedCommand) -> Self {
+        Self {
+            cell: UnsafeCell::new(command),
+        }
     }
 
-    fn description(&self) -> &str {
-        &self.description
+    pub fn name(&self) -> &str {
+        &self.get().name
     }
 
-    fn usage(&self) -> &str {
-        &self.usage
+    pub fn description(&self) -> &str {
+        &self.get().description
     }
 
-    fn example(&self) -> &str {
-        &self.example
+    pub fn description_mut(&self) -> &mut String {
+        // SAFETY: Changing the description field doesn't change the hash.
+        unsafe { &mut self.get_mut().description }
     }
 
-    fn guild_only(&self) -> bool {
-        self.guild_only
+    pub fn usage(&self) -> &str {
+        &self.get().usage
     }
 
-    fn sub_commands(&self) -> &HashSet<Self> {
-        &self.sub_commands
+    pub fn usage_mut(&self) -> &mut String {
+        // SAFETY: Changing the usage field doesn't change the hash.
+        unsafe { &mut self.get_mut().usage }
     }
 
-    fn permissions(&self) -> &[String] {
-        &self.permissions
+    pub fn example(&self) -> &str {
+        &self.get().example
     }
 
-    fn executor(&self) -> Option<&Self::Executor> {
-        self.executor.as_ref()
+    pub fn example_mut(&self) -> &mut String {
+        // SAFETY: Changing the example field doesn't change the hash
+        unsafe { &mut self.get_mut().example }
+    }
+
+    pub fn guild_only(&self) -> bool {
+        self.get().guild_only
+    }
+
+    pub fn guild_only_mut(&self) -> &bool {
+        unsafe { &mut self.get_mut().guild_only }
+    }
+
+    pub fn sub_commands(&self) -> &HashSet<SubCommand> {
+        &self.get().sub_commands
+    }
+
+    pub fn sub_commands_mut(&self) -> &mut HashSet<SubCommand> {
+        // SAFETY: Changing the sub_commands field doesn't change the hash.
+        unsafe { &mut self.get_mut().sub_commands }
+    }
+
+    pub fn get(&self) -> &LoadedCommand {
+        unsafe { &*self.cell.get() }
+    }
+
+    /// Returns a mutable reference the inner `LoadedCommand`.
+    ///
+    /// # Safety
+    ///
+    /// The value might be in a HashSet. Changing the value must not
+    /// change the value's hash.
+    pub unsafe fn get_mut(&self) -> &mut LoadedCommand {
+        &mut *self.cell.get()
+    }
+
+    pub fn into_inner(self) -> LoadedCommand {
+        self.cell.into_inner()
     }
 }
 
+impl CommandExt for SubCommand {
+    type Executor = Executor<MessageContext>;
+
+    fn name(&self) -> &str {
+        &self.get().name
+    }
+
+    fn description(&self) -> &str {
+        &self.get().description
+    }
+
+    fn usage(&self) -> &str {
+        &self.get().usage
+    }
+
+    fn example(&self) -> &str {
+        &self.get().example
+    }
+
+    fn guild_only(&self) -> bool {
+        self.get().guild_only
+    }
+
+    fn permissions(&self) -> &[String] {
+        &self.get().permissions
+    }
+
+    fn sub_commands(&self) -> &HashSet<Self> {
+        &self.get().sub_commands
+    }
+
+    fn executor(&self) -> Option<&Self::Executor> {
+        self.get().executor.as_ref()
+    }
+}
+
+impl Borrow<str> for SubCommand {
+    fn borrow(&self) -> &str {
+        &self.get().name
+    }
+}
+
+impl Clone for SubCommand {
+    fn clone(&self) -> Self {
+        let inner = self.as_ref().clone();
+
+        Self {
+            cell: UnsafeCell::new(inner),
+        }
+    }
+}
+
+impl PartialEq for SubCommand {
+    fn eq(&self, other: &Self) -> bool {
+        let inner_self = self.as_ref();
+        let inner_other = other.as_ref();
+
+        inner_self.eq(inner_other)
+    }
+}
+
+impl Eq for SubCommand {}
+
+impl AsRef<LoadedCommand> for SubCommand {
+    fn as_ref(&self) -> &LoadedCommand {
+        self.get()
+    }
+}
+
+impl Borrow<LoadedCommand> for SubCommand {
+    fn borrow(&self) -> &LoadedCommand {
+        self.get()
+    }
+}
+
+impl Hash for SubCommand {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.as_ref().hash(state);
+    }
+}
+
+unsafe impl Sync for SubCommand {}
+
 #[derive(Default)]
 pub(crate) struct InnerCommandHandler {
-    commands: RwLock<HashSet<LoadedCommand>>,
+    commands: RwLock<HashSet<SubCommand>>,
 }
 
 impl InnerCommandHandler {
@@ -251,7 +382,7 @@ impl InnerCommandHandler {
     where
         I: IntoIterator<Item = Command>,
     {
-        let commands_set = self.commands.read();
+        let mut commands_set = self.commands.write();
 
         let root_set = match options.path {
             Some(path) => {
@@ -260,9 +391,9 @@ impl InnerCommandHandler {
                     None => return Err(Error::InvalidPath),
                 };
 
-                &cmd.sub_commands
+                cmd.sub_commands_mut()
             }
-            None => &commands_set,
+            None => &mut commands_set,
         };
 
         let module_id = match options.module_id {
@@ -277,11 +408,7 @@ impl InnerCommandHandler {
                 command.module_id = module_id;
             }
 
-            unsafe {
-                #[allow(mutable_transmutes)]
-                let root_set: &mut HashSet<LoadedCommand> = std::mem::transmute(root_set);
-                root_set.insert(command);
-            }
+            root_set.insert(SubCommand::new(command));
         }
 
         Ok(())
@@ -294,7 +421,7 @@ impl InnerCommandHandler {
     /// Removes the command with the given `ident`. If a path is provided,
     /// the path will be used to find the parent command.
     pub fn remove_commands(&self, options: RemoveOptions) -> Result<(), Error> {
-        let commands = self.commands.write();
+        let mut commands = self.commands.write();
 
         let root = match options.path {
             Some(path) => {
@@ -303,17 +430,9 @@ impl InnerCommandHandler {
                     None => return Err(Error::InvalidPath),
                 };
 
-                &cmd.sub_commands
+                cmd.sub_commands_mut()
             }
-            None => &commands,
-        };
-
-        // Convert &HashSet into &mut HashSet. This is a safe operation
-        // as `self.commands` is write locked and changing `Command.sub_commands`
-        // doesn't change it's hash.
-        let root: &mut HashSet<LoadedCommand> = unsafe {
-            #[allow(mutable_transmutes)]
-            std::mem::transmute(root)
+            None => &mut commands,
         };
 
         // When a name is given only remove a single command.
@@ -328,7 +447,7 @@ impl InnerCommandHandler {
                 };
 
                 if let Some(module_id) = options.module_id {
-                    if cmd.module_id == module_id {
+                    if cmd.get().module_id == module_id {
                         root.remove(name);
                     }
                 }
@@ -336,7 +455,7 @@ impl InnerCommandHandler {
             None => {
                 // Retain only elments with a different module_id.
                 root.retain(|cmd| match options.module_id {
-                    Some(module_id) => cmd.module_id != module_id,
+                    Some(module_id) => cmd.get().module_id != module_id,
                     None => false,
                 });
             }
@@ -410,7 +529,7 @@ impl CommandHandler {
 
     /// Returns the command matching `args`. If no matching command can
     /// be found `None` is returned.
-    pub fn get_command<A>(&self, args: &mut A) -> Option<LoadedCommand>
+    pub fn get_command<A>(&self, args: &mut A) -> Option<SubCommand>
     where
         A: ArgumentsExt,
     {
@@ -422,7 +541,7 @@ impl CommandHandler {
     /// Returns a list all command's names in the command root.
     pub fn list_root_commands(&self) -> Vec<String> {
         let cmds = self.inner.commands.read();
-        cmds.iter().map(|c| c.name.clone()).collect()
+        cmds.iter().map(|c| c.name().to_string()).collect()
     }
 
     pub fn add_commands<I>(&self, commands: I, options: AddOptions) -> Result<(), Error>
