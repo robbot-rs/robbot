@@ -9,6 +9,7 @@
 //! - Option<T>
 //! - Vec<T>
 //! - String
+//! - Box<T>
 
 use std::io::{self, Read, Write};
 use std::string::FromUtf8Error;
@@ -129,6 +130,10 @@ impl<R> Decoder<R>
 where
     R: Read,
 {
+    pub fn new(reader: R) -> Self {
+        Self { reader }
+    }
+
     pub fn decode_bool(&mut self) -> Result<bool> {
         let value = self.decode_u8()?;
 
