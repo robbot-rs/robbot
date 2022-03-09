@@ -1,3 +1,5 @@
+use crate::util::SmallOption;
+
 use chrono::{Datelike, Duration, Timelike};
 use std::ops::Add;
 
@@ -58,11 +60,11 @@ impl TaskSchedule {
 /// are the requirements.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub struct DateTimeRequirement {
-    second: Option<u8>,
-    minute: Option<u8>,
-    hour: Option<u8>,
-    day: Option<u8>,
-    month: Option<u8>,
+    second: SmallOption<u8>,
+    minute: SmallOption<u8>,
+    hour: SmallOption<u8>,
+    day: SmallOption<u8>,
+    month: SmallOption<u8>,
     year: Option<i32>,
 }
 
@@ -73,32 +75,103 @@ impl DateTimeRequirement {
     }
 
     /// Sets the requirement for seconds.
-    pub fn with_second(&mut self, second: u8) -> &mut Self {
-        self.second = Some(second);
+    pub fn with_second(&mut self, second: u8) -> Option<&mut Self> {
+        if second >= 60 {
+            return None;
+        }
+
+        // SAFETY: `second` was checked to be a valid value.
+        unsafe { Some(self.with_second_unchecked(second)) }
+    }
+
+    /// Sets the requirement for seconds without validating `second`.
+    ///
+    /// # Safety
+    /// Calling this method with in invalid `second` value has unspecified effects
+    /// on the values returned by [`Self::advance`].
+    pub unsafe fn with_second_unchecked(&mut self, second: u8) -> &mut Self {
+        self.second = SmallOption::new_unchecked(second);
         self
     }
 
     /// Sets the requirement for minutes.
-    pub fn with_minute(&mut self, minute: u8) -> &mut Self {
-        self.minute = Some(minute);
+    pub fn with_minute(&mut self, minute: u8) -> Option<&mut Self> {
+        if minute >= 60 {
+            return None;
+        }
+
+        // SAFETY: `minute` was checked to be a valid value.
+        unsafe { Some(self.with_minute_unchecked(minute)) }
+    }
+
+    /// Sets the requirement for minutes without validating `minute`.
+    ///
+    /// # Safety
+    /// Calling this method with in invalid `minute` value has unspecified effects
+    /// on the values returned by [`Self::advance`].
+    pub unsafe fn with_minute_unchecked(&mut self, minute: u8) -> &mut Self {
+        self.minute = SmallOption::new_unchecked(minute);
         self
     }
 
     /// Sets the requirement for hours.
-    pub fn with_hour(&mut self, hour: u8) -> &mut Self {
-        self.hour = Some(hour);
+    pub fn with_hour(&mut self, hour: u8) -> Option<&mut Self> {
+        if hour >= 24 {
+            return None;
+        }
+
+        // SAFETY: `hour` was checked to be a valid value.
+        unsafe { Some(self.with_hour_unchecked(hour)) }
+    }
+
+    /// Sets the requirement for hours without validating `hour`.
+    ///
+    /// # Safety
+    /// Calling this method with in invalid `hour` value has unspecified effects
+    /// on the values returned by [`Self::advance`].
+    pub unsafe fn with_hour_unchecked(&mut self, hour: u8) -> &mut Self {
+        self.hour = SmallOption::new_unchecked(hour);
         self
     }
 
     /// Sets the requirement for days.
-    pub fn with_day(&mut self, day: u8) -> &mut Self {
-        self.day = Some(day);
+    /// **Note: Days start counting from 1. A value of `0` is invalid.**
+    pub fn with_day(&mut self, day: u8) -> Option<&mut Self> {
+        if day == 0 || day >= 32 {
+            return None;
+        }
+
+        // SAFETY: `day` was checked to be a valid value.
+        unsafe { Some(self.with_day_unchecked(day)) }
+    }
+
+    /// Sets the requirement for days without validating `day`.
+    ///
+    /// # Safety
+    /// Calling this method with in invalid `day` value has unspecified effects
+    /// on the values returned by [`Self::advance`].
+    pub unsafe fn with_day_unchecked(&mut self, day: u8) -> &mut Self {
+        self.day = SmallOption::new_unchecked(day);
         self
     }
 
     /// Sets the requirement for months.
-    pub fn with_month(&mut self, month: u8) -> &mut Self {
-        self.month = Some(month);
+    /// **Note: Months start counting from 1. A value of `0` is invalid.**
+    pub fn with_month(&mut self, month: u8) -> Option<&mut Self> {
+        if month == 0 || month >= 13 {
+            return None;
+        }
+
+        unsafe { Some(self.with_month_unchecked(month)) }
+    }
+
+    /// Sets the requirement for months without validating `month`.
+    ///
+    /// # Safety
+    /// Calling this method with in invalid `month` value has unspecified effects
+    /// on the values returned by [`Self::advance`].
+    pub unsafe fn with_month_unchecked(&mut self, month: u8) -> &mut Self {
+        self.month = SmallOption::new_unchecked(month);
         self
     }
 
@@ -154,7 +227,9 @@ impl DateTimeRequirement {
         // by 1).
         let mut upcast = false;
 
-        if let Some(second) = self.second {
+        if self.second.is_some() {
+            let second = unsafe { self.second.unwrap_unchecked() };
+
             let current_second = datetime.second() as i8;
             let diff = second as i8 - current_second;
 
@@ -289,36 +364,46 @@ impl DateTimeRequirement {
         T: Datelike + Timelike,
     {
         // Check the seconds.
-        if let Some(second) = self.second {
-            if second as u32 != datetime.second() {
+        if self.second.is_some() {
+            let second = unsafe { self.second.unwrap_unchecked() as u32 };
+
+            if second != datetime.second() {
                 return false;
             }
         }
 
         // Check the minutes.
-        if let Some(minute) = self.minute {
-            if minute as u32 != datetime.minute() {
+        if self.minute.is_some() {
+            let minute = unsafe { self.minute.unwrap_unchecked() as u32 };
+
+            if minute != datetime.minute() {
                 return false;
             }
         }
 
         // Check the hours.
-        if let Some(hour) = self.hour {
-            if hour as u32 != datetime.hour() {
+        if self.hour.is_some() {
+            let hour = unsafe { self.hour.unwrap_unchecked() as u32 };
+
+            if hour != datetime.hour() {
                 return false;
             }
         }
 
         // Check the days.
-        if let Some(day) = self.day {
-            if day as u32 != datetime.day() {
+        if self.day.is_some() {
+            let day = unsafe { self.day.unwrap_unchecked() as u32 };
+
+            if day != datetime.day() {
                 return false;
             }
         }
 
         // Check the months.
-        if let Some(month) = self.month {
-            if month as u32 != datetime.month() {
+        if self.month.is_some() {
+            let month = unsafe { self.month.unwrap_unchecked() as u32 };
+
+            if month != datetime.month() {
                 return false;
             }
         }
@@ -359,13 +444,13 @@ mod tests {
         let dt = NaiveDateTime::new(date, time);
 
         let mut repeat_dt = DateTimeRequirement::new();
-        repeat_dt.with_second(1);
+        repeat_dt.with_second(1).unwrap();
 
         assert_eq!(repeat_dt.advance(dt).unwrap(), dt.with_second(1).unwrap());
 
         let mut repeat_dt = DateTimeRequirement::new();
-        repeat_dt.with_second(32);
-        repeat_dt.with_minute(23);
+        repeat_dt.with_second(32).unwrap();
+        repeat_dt.with_minute(23).unwrap();
 
         assert_eq!(
             repeat_dt.advance(dt).unwrap(),
@@ -373,8 +458,8 @@ mod tests {
         );
 
         let mut repeat_dt = DateTimeRequirement::new();
-        repeat_dt.with_second(32);
-        repeat_dt.with_minute(6);
+        repeat_dt.with_second(32).unwrap();
+        repeat_dt.with_minute(6).unwrap();
 
         assert_eq!(
             repeat_dt.advance(dt).unwrap(),
@@ -387,7 +472,7 @@ mod tests {
         );
 
         let mut repeat_dt = DateTimeRequirement::new();
-        repeat_dt.with_day(14);
+        repeat_dt.with_day(14).unwrap();
 
         assert_eq!(
             repeat_dt.advance(dt).unwrap(),
