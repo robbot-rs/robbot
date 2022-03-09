@@ -10,6 +10,7 @@ pub mod module;
 pub mod remote;
 pub mod store;
 pub mod task;
+pub mod util;
 
 pub use crate::arguments::Arguments;
 pub use crate::bot::{Error, Result};
