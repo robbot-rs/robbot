@@ -79,6 +79,35 @@ pub fn get_one(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+pub fn insert(input: TokenStream) -> TokenStream {
+    let InsertBuilder { store, data } = parse_macro_input!(input as InsertBuilder);
+
+    let expanded = quote! {
+        {
+            use ::robbot::store::Store;
+
+            #store.insert(#data)
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+struct InsertBuilder {
+    store: Expr,
+    data: Expr,
+}
+
+impl Parse for InsertBuilder {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let store = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let data = input.parse()?;
+
+        Ok(Self { store, data })
+    }
+}
+
 struct QueryBuilder {
     store: Expr,
     datatype: Type,

@@ -143,3 +143,8 @@ pub fn get(input: TokenStream) -> TokenStream {
 pub fn get_one(input: TokenStream) -> TokenStream {
     store::get_one(input)
 }
+
+#[proc_macro]
+pub fn insert(input: TokenStream) -> TokenStream {
+    store::insert(input)
+}
