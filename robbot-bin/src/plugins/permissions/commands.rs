@@ -3,7 +3,8 @@ use super::PERMISSION_MANAGE;
 use robbot::arguments::ArgumentsExt;
 use robbot::builder::CreateMessage;
 use robbot::model::id::{RoleId, UserId};
-use robbot::{command, Context, Error, Result, StoreData};
+use robbot::store::{delete, insert};
+use robbot::{command, Context, Error, Result};
 use robbot_core::context::MessageContext;
 use robbot_core::permissions::{RolePermission, UserPermission};
 
@@ -37,7 +38,7 @@ async fn add(mut ctx: MessageContext) -> Result {
                 node,
             };
 
-            ctx.state.store().insert(node).await?;
+            insert!(ctx.state.store(), node).await?;
         }
     } else {
         // Expect a user.
@@ -50,7 +51,7 @@ async fn add(mut ctx: MessageContext) -> Result {
                 node,
             };
 
-            ctx.state.store().insert(node).await?;
+            insert!(ctx.state.store(), node).await?;
         }
     }
 
@@ -139,24 +140,24 @@ async fn remove(mut ctx: MessageContext) -> Result {
         let role_id: RoleId = id.parse().or(Err(Error::InvalidCommandUsage))?;
 
         for node in ctx.args.as_args() {
-            let query = RolePermission::query()
-                .guild_id(guild_id)
-                .role_id(role_id)
-                .node(node);
-
-            ctx.state.store().delete(query).await?;
+            delete!(ctx.state.store(), RolePermission => {
+                guild_id == guild_id,
+                role_id == role_id,
+                node == node,
+            })
+            .await?;
         }
     } else {
         // Expect a user.
         let user_id: UserId = id.parse().or(Err(Error::InvalidCommandUsage))?;
 
         for node in ctx.args.as_args() {
-            let query = UserPermission::query()
-                .guild_id(guild_id)
-                .user_id(user_id)
-                .node(node);
-
-            ctx.state.store().delete(query).await?;
+            delete!(ctx.state.store(), UserPermission => {
+                guild_id == guild_id,
+                user_id == user_id,
+                node == node,
+            })
+            .await?;
         }
     }
 
