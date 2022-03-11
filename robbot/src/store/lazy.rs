@@ -95,6 +95,22 @@ where
 
         store.insert(data).await
     }
+
+    pub fn make_descriptor<T>(&self) -> T::DataDescriptor
+    where
+        T: StoreData<S>,
+        T::DataDescriptor: Default,
+    {
+        T::DataDescriptor::default()
+    }
+
+    pub fn make_query<T>(&self) -> T::DataQuery
+    where
+        T: StoreData<S>,
+        T::DataQuery: Default,
+    {
+        T::DataQuery::default()
+    }
 }
 
 #[derive(Debug)]

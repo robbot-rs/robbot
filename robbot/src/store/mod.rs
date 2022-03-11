@@ -70,6 +70,22 @@ pub trait Store: Sized {
     async fn insert<T>(&self, data: T) -> Result<(), Self::Error>
     where
         T: StoreData<Self> + Send + Sync + 'static;
+
+    fn make_query<T>(&self) -> T::DataQuery
+    where
+        T: StoreData<Self>,
+        T::DataQuery: Default,
+    {
+        T::DataQuery::default()
+    }
+
+    fn make_descriptor<T>(&self) -> T::DataDescriptor
+    where
+        T: StoreData<Self>,
+        T::DataDescriptor: Default,
+    {
+        T::DataDescriptor::default()
+    }
 }
 
 /// A type for serializing some data into a query for store `S`.
