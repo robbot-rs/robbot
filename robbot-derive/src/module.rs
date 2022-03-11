@@ -251,7 +251,7 @@ impl ToTokens for StoreDataTypes {
             _ => quote! {
                 let res = ::tokio::try_join! {
                     #(
-                        state.store().create::<#types>(),
+                        ::robbot::store::create!(state.store(), #types),
                     )*
                 };
                 res?;

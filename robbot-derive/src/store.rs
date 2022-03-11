@@ -3,6 +3,52 @@ use quote::{quote, ToTokens, TokenStreamExt};
 use syn::parse::{Parse, ParseStream, Result};
 use syn::{braced, parse_macro_input, Expr, Path, Token, Type};
 
+pub fn create(input: TokenStream) -> TokenStream {
+    let QueryBuilder {
+        store,
+        datatype,
+        filter,
+    } = parse_macro_input!(input as QueryBuilder);
+
+    let expanded = match filter {
+        Some(_) => panic!("Use of create! with filtered query is unsupported"),
+        None => quote! {
+            {
+                use ::robbot::store::Store;
+
+                let descriptor = #store.make_descriptor::<#datatype>();
+
+                #store.create(descriptor)
+            }
+        },
+    };
+
+    TokenStream::from(expanded)
+}
+
+pub fn delete(input: TokenStream) -> TokenStream {
+    let QueryBuilder {
+        store,
+        datatype,
+        filter,
+    } = parse_macro_input!(input as QueryBuilder);
+
+    let expanded = match filter {
+        Some(filter) => quote! {
+            {
+                use ::robbot::store::Store;
+
+                let query = #store.make_query::<#datatype>()#(.#filter)*;
+
+                #store.delete(query)
+            }
+        },
+        None => panic!("Use of delete! without a filtered query is currently not supported"),
+    };
+
+    TokenStream::from(expanded)
+}
+
 pub fn get(input: TokenStream) -> TokenStream {
     let builder = parse_macro_input!(input as QueryBuilder);
 

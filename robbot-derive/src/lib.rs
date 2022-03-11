@@ -125,6 +125,16 @@ pub fn task(attr: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
+pub fn create(input: TokenStream) -> TokenStream {
+    store::create(input)
+}
+
+#[proc_macro]
+pub fn delete(input: TokenStream) -> TokenStream {
+    store::delete(input)
+}
+
+#[proc_macro]
 pub fn get(input: TokenStream) -> TokenStream {
     store::get(input)
 }
