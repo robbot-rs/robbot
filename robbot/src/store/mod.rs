@@ -5,6 +5,8 @@ pub mod lazy;
 use async_trait::async_trait;
 use std::error::Error;
 
+pub use robbot_derive::{get, get_one};
+
 #[async_trait]
 pub trait Store: Sized {
     type Serializer: Serializer<Self>;
