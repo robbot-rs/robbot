@@ -40,9 +40,10 @@ impl Store for MysqlStore {
         let mut serializer = MysqlSerializer::new(table_name, QueryKind::Create);
         descriptor.serialize(&mut serializer).unwrap();
 
-        sqlx::query(&serializer.into_sql())
-            .execute(&self.pool)
-            .await?;
+        let sql = serializer.into_sql();
+        log::debug!("[MySQL] Executing SQL create query: \"{}\"", sql);
+
+        sqlx::query(&sql).execute(&self.pool).await?;
 
         Ok(())
     }
