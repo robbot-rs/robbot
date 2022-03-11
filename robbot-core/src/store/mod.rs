@@ -1,4 +1,3 @@
-pub mod mem;
 pub mod mysql;
 
 use std::error::Error as StdError;
