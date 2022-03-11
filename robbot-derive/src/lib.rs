@@ -4,7 +4,6 @@ mod hook;
 mod module;
 mod store;
 mod storedata;
-mod task;
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
@@ -117,11 +116,6 @@ pub fn decode(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn module(input: TokenStream) -> TokenStream {
     module::expand_macro(input)
-}
-
-#[proc_macro_attribute]
-pub fn task(attr: TokenStream, input: TokenStream) -> TokenStream {
-    task::expand_macro(attr, input)
 }
 
 #[proc_macro]

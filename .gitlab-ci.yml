@@ -7,7 +7,7 @@ cache:
 stages:
   - setup
   - fmt
-  - clippy
+  - lint
   - test
 
 setup:
@@ -22,10 +22,16 @@ fmt:
     - cargo fmt --all -- --check
 
 clippy:
-  stage: clippy
+  stage: lint
   script:
     - rustup component add clippy
     - cargo clippy --all-targets --all-features -- -D warnings
+
+doc:
+  stage: lint
+  script:
+    - rustup component add rustdoc
+    - RUSTDOCFLAGS="-Dwarnings" cargo doc --no-deps --all-features
 
 test:
   stage: test

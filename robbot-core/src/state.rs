@@ -80,13 +80,9 @@ impl State {
         &self.modules
     }
 
-    /// Returns a reference to the internal [`MainStore`].
+    /// Returns a reference to the internal [`LazyStore`].
     pub fn store(&self) -> &LazyStore<MysqlStore> {
         &self.store
-    }
-
-    pub fn store_mut(&mut self) -> &mut LazyStore<MysqlStore> {
-        &mut self.store
     }
 
     /// Returns a reference to the internal [`PermissionHandler`].
