@@ -9,13 +9,16 @@ build:
 fmt:
 	cargo fmt --all -- --check
 
+doc:
+	RUSTDOCFLAGS="-Dwarnings" cargo doc --no-deps --all-features
+
 clippy:
 	cargo clippy --all-targets --all-features -- -D warnings
 
 test:
 	cargo test
 
-test-all: fmt clippy test
+test-all: fmt doc clippy test
 
 # Build Robbot against the current version of libc6 that comes
 # with the debian buster release.
