@@ -123,6 +123,10 @@ where
         }
     }
 
+    /// Returns the contained `Some` value. Panics if `self` is not `Some`.
+    ///
+    /// # Panics
+    /// Panics if `self` is a `None` value.
     #[inline]
     pub fn unwrap(self) -> T {
         if self.is_some() {
@@ -132,6 +136,7 @@ where
         }
     }
 
+    /// Returns the contained `Some` value or the provided `default`.
     #[inline]
     pub fn unwrap_or(self, default: T) -> T {
         if self.is_some() {
@@ -141,6 +146,7 @@ where
         }
     }
 
+    /// Returns the contained `Some` value or computes it from a closure.
     #[inline]
     pub fn unwrap_or_else<F>(self, f: F) -> T
     where
@@ -153,6 +159,7 @@ where
         }
     }
 
+    /// Returns the contained `Some` value or the default value of `T`.
     #[inline]
     pub fn unwrap_or_default(self) -> T
     where
@@ -165,6 +172,12 @@ where
         }
     }
 
+    /// Returns the contained `Some` value, consuming the ?`SmallOption`, without checking that
+    /// the value is not `None`.
+    ///
+    /// # Safety
+    /// Calling this method on a `None` value is unspecified behavoir. Depending on the concrete
+    /// value of `T`, this might or might not be undefined behavoir.
     #[inline]
     pub unsafe fn unwrap_unchecked(self) -> T {
         self.value
