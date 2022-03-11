@@ -1,10 +1,11 @@
+use robbot::store::lazy::LazyStore;
+
 use crate::command::CommandHandler;
 use crate::config::Config;
 use crate::context::Context;
 use crate::hook::HookController;
 use crate::module::ModuleHandler;
 use crate::store::mysql::MysqlStore;
-use crate::store::MainStore;
 use crate::task::TaskScheduler;
 
 #[cfg(feature = "permissions")]
@@ -20,7 +21,7 @@ pub struct State {
     tasks: TaskScheduler,
     hooks: HookController,
     modules: ModuleHandler,
-    store: MainStore<MysqlStore>,
+    store: LazyStore<MysqlStore>,
     #[cfg(feature = "permissions")]
     permissions: PermissionHandler,
     pub connect_time: Arc<RwLock<Option<Instant>>>,
@@ -37,7 +38,7 @@ impl State {
 
         let modules = ModuleHandler::new(commands.clone());
 
-        let store: MainStore<MysqlStore> = MainStore::new(&config.database.connect_string());
+        let store: LazyStore<MysqlStore> = LazyStore::new(&config.database.connect_string());
 
         #[cfg(feature = "permissions")]
         let permissions = PermissionHandler::new(store.clone());
@@ -80,11 +81,11 @@ impl State {
     }
 
     /// Returns a reference to the internal [`MainStore`].
-    pub fn store(&self) -> &MainStore<MysqlStore> {
+    pub fn store(&self) -> &LazyStore<MysqlStore> {
         &self.store
     }
 
-    pub fn store_mut(&mut self) -> &mut MainStore<MysqlStore> {
+    pub fn store_mut(&mut self) -> &mut LazyStore<MysqlStore> {
         &mut self.store
     }
 

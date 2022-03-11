@@ -1,21 +1,23 @@
 use crate::store::mysql::MysqlStore;
-use crate::store::{Error, MainStore};
+use crate::store::Error;
 
 use robbot::model::id::{GuildId, RoleId, UserId};
+use robbot::store::get;
 use robbot::StoreData;
 
+use robbot::store::lazy::LazyStore;
 use serenity::model::guild::Member;
 
 // TODO: Make PermissionHandler with any type of store.
 #[derive(Clone)]
 pub struct PermissionHandler {
-    store: MainStore<MysqlStore>,
+    store: LazyStore<MysqlStore>,
 }
 
 impl PermissionHandler {
     /// Creates a new `PermissionHandler`. The pointer `store` must be valid
     /// for the lifetime of `PermissionHandler`.
-    pub fn new(store: MainStore<MysqlStore>) -> Self {
+    pub fn new(store: LazyStore<MysqlStore>) -> Self {
         Self { store }
     }
 
@@ -92,9 +94,13 @@ impl PermissionHandler {
         user_id: UserId,
         guild_id: GuildId,
     ) -> Result<Vec<UserPermission>, Error> {
-        let query = UserPermission::query().guild_id(guild_id).user_id(user_id);
+        let permissions = get!(self.store, UserPermission => {
+            guild_id == guild_id,
+            user_id == user_id,
+        })
+        .await?;
 
-        self.store.get(query).await
+        Ok(permissions)
     }
 
     /// Returns all permissions for a role in a single guild.
@@ -103,9 +109,13 @@ impl PermissionHandler {
         role_id: RoleId,
         guild_id: GuildId,
     ) -> Result<Vec<RolePermission>, Error> {
-        let query = RolePermission::query().guild_id(guild_id).role_id(role_id);
+        let permissions = get!(self.store, RolePermission => {
+            guild_id == guild_id,
+            role_id == role_id
+        })
+        .await?;
 
-        self.store.get(query).await
+        Ok(permissions)
     }
 }
 
