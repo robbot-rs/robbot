@@ -1249,7 +1249,7 @@ mod tests {
         assert_eq!(entry, vec![data2.clone()]);
 
         // Remove the entry where c == "abcd" (data).
-        delete!(store,Test => {
+        delete!(store, Test => {
             c == "abcd".to_string(),
         })
         .await
