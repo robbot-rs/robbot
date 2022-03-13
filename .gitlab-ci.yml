@@ -30,7 +30,7 @@ clippy:
 doc:
   stage: lint
   script:
-    - rustup component add rustdoc
+    - rustup component add rust-docs
     - RUSTDOCFLAGS="-Dwarnings" cargo doc --no-deps --all-features
 
 test:
