@@ -14,15 +14,21 @@ use std::slice;
 use std::sync::Arc;
 
 /// An efficient [`Store`] that keeps all entries in memory.
+///
+///
+/// Warning: As the name suggests, this store keeps all entries in memory. Dropping the store
+/// or restarting the bot will cause all entries to be lost.
 #[derive(Clone, Debug, Default)]
 pub struct MemStore {
     // inner: Arc<RwLock<HashMap<String, Vec<Vec<u8>>>>>,
     inner: Arc<RwLock<HashMap<String, Vec<Entry>>>>,
 }
 
+/// A single [`StoreData`] `Entry`. The concrete type of the `Entry` is not saved. The type
+/// must be known to recreate it from an `Entry`.
 #[derive(Debug)]
 struct Entry {
-    /// The memory buffer, all pointers in keys must point into buf.
+    /// The full memory buffer.
     buf: Vec<u8>,
     keys: HashMap<String, *const u8>,
 }
@@ -30,61 +36,76 @@ struct Entry {
 impl Entry {
     /// Compare this entry with another. If the key provided by `other` doesn't exist
     /// on this entry, `None` is returned.
-    fn eq(&self, key: &str, other: TypePtr) -> Option<bool> {
-        let left_ptr = *self.keys.get(key)?;
+    ///
+    /// # Safety
+    /// This method expects `key` to exist on `self.keys` and [`TypePtr`] to point to the same
+    /// type as the matching key in `self.key` points to. **Having the two pointers point to
+    /// **differently sized types causes unidentified behavoir.
+    unsafe fn eq(&self, key: &str, other: TypePtr) -> bool {
+        let left_ptr = match self.keys.get(key) {
+            Some(ptr) => *ptr,
+            None => return false,
+        };
+
         let right_ptr = other.ptr;
 
-        unsafe {
-            Some(match other._type {
-                StoreType::Bool | StoreType::I8 | StoreType::U8 => {
-                    let left = *left_ptr;
-                    let right = *right_ptr;
+        // Compare the contents of `left_ptr` with `right_ptr`. It is not needed to convert
+        // the bytes into the actual types. Simply comparing the byte slices asserts equality.
+        match other.kind {
+            StoreType::Bool | StoreType::I8 | StoreType::U8 => {
+                let left = *left_ptr;
+                let right = *right_ptr;
 
-                    left == right
-                }
-                StoreType::I16 | StoreType::U16 => {
-                    let left = slice::from_raw_parts(left_ptr, 2);
-                    let right = slice::from_raw_parts(right_ptr, 2);
+                left == right
+            }
+            StoreType::I16 | StoreType::U16 => {
+                let left = slice::from_raw_parts(left_ptr, 2);
+                let right = slice::from_raw_parts(right_ptr, 2);
 
-                    left == right
-                }
-                StoreType::I32 | StoreType::U32 | StoreType::F32 => {
-                    let left = slice::from_raw_parts(left_ptr, 4);
-                    let right = slice::from_raw_parts(right_ptr, 4);
+                left == right
+            }
+            StoreType::I32 | StoreType::U32 | StoreType::F32 => {
+                let left = slice::from_raw_parts(left_ptr, 4);
+                let right = slice::from_raw_parts(right_ptr, 4);
 
-                    left == right
-                }
-                StoreType::I64 | StoreType::U64 | StoreType::F64 => {
-                    let left = slice::from_raw_parts(left_ptr, 8);
-                    let right = slice::from_raw_parts(right_ptr, 8);
+                left == right
+            }
+            StoreType::I64 | StoreType::U64 | StoreType::F64 => {
+                let left = slice::from_raw_parts(left_ptr, 8);
+                let right = slice::from_raw_parts(right_ptr, 8);
 
-                    left == right
-                }
-                StoreType::String => {
-                    let left = {
-                        let len = slice::from_raw_parts(left_ptr, mem::size_of::<usize>());
-                        let len: [u8; mem::size_of::<usize>()] = mem::transmute_copy(&len[0]);
-                        let len = usize::from_ne_bytes(len);
+                left == right
+            }
+            StoreType::String => {
+                let left = {
+                    let len = slice::from_raw_parts(left_ptr, mem::size_of::<usize>());
+                    let len: [u8; mem::size_of::<usize>()] = mem::transmute_copy(&len[0]);
+                    let len = usize::from_ne_bytes(len);
 
-                        // Read the whole string including the prefixed length.
-                        slice::from_raw_parts(left_ptr, mem::size_of::<usize>() + len)
-                    };
+                    // Read the whole string including the prefixed length.
+                    slice::from_raw_parts(left_ptr, mem::size_of::<usize>() + len)
+                };
 
-                    let right = {
-                        let len = slice::from_raw_parts(right_ptr, mem::size_of::<usize>());
-                        let len: [u8; mem::size_of::<usize>()] = mem::transmute_copy(&len[0]);
-                        let len = usize::from_ne_bytes(len);
+                let right = {
+                    let len = slice::from_raw_parts(right_ptr, mem::size_of::<usize>());
+                    let len: [u8; mem::size_of::<usize>()] = mem::transmute_copy(&len[0]);
+                    let len = usize::from_ne_bytes(len);
 
-                        slice::from_raw_parts(right_ptr, mem::size_of::<usize>() + len)
-                    };
+                    slice::from_raw_parts(right_ptr, mem::size_of::<usize>() + len)
+                };
 
-                    left == right
-                }
-            })
+                left == right
+            }
         }
     }
 
-    /// Copy the entry buffer to create type `T`.
+    /// Copies the entry's buffer to create type `T`.
+    ///
+    /// # Safety
+    /// This method simply copies bytes from the buffer until enough bytes were written to
+    /// create `T`. Providing an a different type `T` than the [`Entry`] was created from
+    /// causes `T` to contain junk data. **Providing a type `T` that is bigger than the buffer
+    /// causes unidentified behavoir.**
     unsafe fn copy_into<T>(&self) -> T
     where
         T: StoreData<MemStore>,
@@ -94,8 +115,7 @@ impl Entry {
     }
 }
 
-// Entry is Send and Sync because all *const u8 pointers in `keys` point into
-// `buf`.
+// `Entry` is Send and Sync since all pointers in `self.keys` point into `self.buf`.
 unsafe impl Send for Entry {}
 unsafe impl Sync for Entry {}
 
@@ -122,30 +142,23 @@ impl Store for MemStore {
         Q: DataQuery<T, Self> + Send,
     {
         let mut inner = self.inner.write();
-        match inner.get_mut(&T::resource_name()) {
-            Some(entries) => {
-                let query = serialize_query(query);
 
-                entries.retain(|entry| {
-                    for (key, val) in &query.keys {
-                        match entry.eq(key, *val) {
-                            Some(eq) => {
-                                // If the entry doesn't match a single field, keep it.
-                                if !eq {
-                                    return true;
-                                }
-                            }
-                            // The query key is invalid, keep the entry.
-                            None => return true,
+        if let Some(entries) = inner.get_mut(&T::resource_name()) {
+            let query = serialize_query(query);
+
+            entries.retain(|entry| {
+                for (key, val) in &query.keys {
+                    // SAFETY: `T` is the same type as `entry` was created from.
+                    unsafe {
+                        if !entry.eq(key, *val) {
+                            return true;
                         }
                     }
+                }
 
-                    // All checks were `true`, remove the entry.
-                    false
-                });
-            }
-            // No entries exist for `T`.
-            None => (),
+                // All checks were `true`, remove the entry.
+                false
+            });
         }
 
         Ok(())
@@ -167,17 +180,14 @@ impl Store for MemStore {
                 'outer: for entry in entries {
                     for (key, val) in &query.keys {
                         match entry.keys.get(key) {
-                            Some(_) => match entry.eq(key, *val) {
-                                Some(eq) => {
-                                    if !eq {
-                                        // One item doesn't match with the query, try
-                                        // the next element.
+                            Some(_) => {
+                                // SAFETY: `T` is the same type as `entry` was created from.
+                                unsafe {
+                                    if !entry.eq(key, *val) {
                                         continue 'outer;
                                     }
                                 }
-                                // The key in the query doesn't exist on the entry.
-                                None => return Ok(Vec::new()),
-                            },
+                            }
                             None => return Ok(Vec::new()),
                         }
                     }
@@ -233,17 +243,14 @@ impl Store for MemStore {
                 'outer: for entry in entries {
                     for (key, val) in &query.keys {
                         match entry.keys.get(key) {
-                            Some(_) => match entry.eq(key, *val) {
-                                Some(eq) => {
-                                    if !eq {
-                                        // One item doesn't match with the query, try
-                                        // the next element.
+                            Some(_) => {
+                                // SAFETY: `T` is the same type as `entry` was created from.
+                                unsafe {
+                                    if !entry.eq(key, *val) {
                                         continue 'outer;
                                     }
                                 }
-                                // The key in the query doesn't exist on the entry.
-                                None => return Ok(None),
-                            },
+                            }
                             None => return Ok(None),
                         }
                     }
@@ -289,6 +296,13 @@ impl Store for MemStore {
     }
 }
 
+/// The [`Serializer`] for [`MemStore`]. The exact number of bytes written must be known before
+/// creating the `MemSerializer`.
+///
+///
+/// `MemSerializer` works by directly writing data into the buffer of `self.buf`. `self.keys`
+/// pointers point directly into `self.buf`. **Growing the [`Vec`] causes all pointers to become
+/// invalid. This causes unidentified behavoir if the pointers are used.**
 #[derive(Clone, Debug)]
 pub struct MemSerializer {
     buf: Vec<u8>,
@@ -296,6 +310,7 @@ pub struct MemSerializer {
 }
 
 impl MemSerializer {
+    /// Create a new `MemSerializer` with a buffer of `capacity` allocated.
     fn new(capacity: usize) -> Self {
         Self {
             buf: Vec::with_capacity(capacity),
@@ -455,10 +470,12 @@ struct MemDeserializer {
 }
 
 impl MemDeserializer {
+    /// Creates a new `MemDeserializer` that starts reading at `ptr`.
     fn new(ptr: *const u8) -> Self {
         Self { ptr }
     }
 
+    /// Creates a new `MemDeserializer` that starts reading at the first slice entry.
     fn new_from_slice(buf: &[u8]) -> Self {
         Self { ptr: buf.as_ptr() }
     }
@@ -469,7 +486,10 @@ impl MemDeserializer {
     /// into `T`.
     ///
     /// # Safety
-    /// It is unidentified behavoir if `self.buf` is smaller than `size_of::<T>()`.
+    /// Calling this method causes unidentified behavoir if `self.buf` is smaller than
+    /// [`size_of::<T>()`].
+    ///
+    /// [`size_of::<T>()`]: mem::size_of
     #[inline]
     unsafe fn read<T>(&mut self) -> T {
         let size = mem::size_of::<T>();
@@ -645,6 +665,7 @@ impl Serializer<MemStore> for SizeSerializer {
     }
 }
 
+/// All variants for primitive types.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum StoreType {
     Bool,
@@ -661,6 +682,7 @@ enum StoreType {
     String,
 }
 
+/// `QuerySerializer` works like `MemSerializer` but also keeps tracks of all types.
 struct QuerySerializer {
     buf: Vec<u8>,
     keys: HashMap<String, TypePtr>,
@@ -861,12 +883,12 @@ where
 #[derive(Copy, Clone, Debug)]
 struct TypePtr {
     ptr: *const u8,
-    _type: StoreType,
+    kind: StoreType,
 }
 
 impl TypePtr {
-    fn new(ptr: *const u8, _type: StoreType) -> Self {
-        Self { ptr, _type }
+    fn new(ptr: *const u8, kind: StoreType) -> Self {
+        Self { ptr, kind }
     }
 }
 
