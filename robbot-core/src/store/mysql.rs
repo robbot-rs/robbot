@@ -571,7 +571,7 @@ impl Serializer<MysqlStore> for MysqlSerializer {
     fn serialize_str(&mut self, v: &str) -> Result<(), Self::Error> {
         match self.query {
             Query::Create { .. } => self.write_value("TEXT"),
-            _ => self.write_value(format!("'{}'", v.replace("'", "\\'"))),
+            _ => self.write_value(format!("'{}'", v.replace('\'', "\\'"))),
         }
 
         Ok(())
