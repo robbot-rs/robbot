@@ -134,6 +134,12 @@ impl FromStr for RoleId {
     }
 }
 
+impl From<u64> for RoleId {
+    fn from(id: u64) -> Self {
+        Self(id)
+    }
+}
+
 #[derive(
     Copy,
     Clone,
@@ -166,6 +172,12 @@ impl FromStr for UserId {
 
         let id = s.parse()?;
         Ok(Self(id))
+    }
+}
+
+impl From<u64> for UserId {
+    fn from(id: u64) -> Self {
+        Self(id)
     }
 }
 

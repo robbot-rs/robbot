@@ -1,4 +1,5 @@
 use crate::bot::Error;
+use crate::model::id::{ChannelId, RoleId, UserId};
 
 use std::fmt::{self, Display, Formatter};
 use std::iter::FromIterator;
@@ -399,9 +400,132 @@ impl From<OwnedArguments> for CommandArguments {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct InvalidMention;
+
+/// A channel mention with the format `<#{id}>`.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct ChannelMention {
+    pub id: ChannelId,
+}
+
+impl ChannelMention {
+    /// Creates a new `ChannelMention`.
+    pub fn new<T>(id: T) -> Self
+    where
+        T: Into<ChannelId>,
+    {
+        Self { id: id.into() }
+    }
+}
+
+impl Display for ChannelMention {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "<#{}>", self.id.0)
+    }
+}
+
+impl FromStr for ChannelMention {
+    type Err = InvalidMention;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if !s.starts_with("<#") || !s.ends_with('>') {
+            return Err(InvalidMention);
+        }
+
+        // SAFETY: The subslice is in bounds of the original slice.
+        let id = unsafe { s.get_unchecked(2..s.len() - 1) };
+
+        let id = id.parse().or(Err(InvalidMention))?;
+
+        Ok(Self { id: ChannelId(id) })
+    }
+}
+
+/// A role mention with the format `<@&{id}>`.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct RoleMention {
+    pub id: RoleId,
+}
+
+impl RoleMention {
+    /// Creates a new `RoleMention`.
+    pub fn new<T>(id: T) -> Self
+    where
+        T: Into<RoleId>,
+    {
+        Self { id: id.into() }
+    }
+}
+
+impl Display for RoleMention {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "<@&{}>", self.id.0)
+    }
+}
+
+impl FromStr for RoleMention {
+    type Err = InvalidMention;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if !s.starts_with("<@&") || !s.ends_with('>') {
+            return Err(InvalidMention);
+        }
+
+        // SAFETY: The subslice is in bounds of the original slice.
+        let id = unsafe { s.get_unchecked(3..s.len() - 1) };
+
+        let id = id.parse().or(Err(InvalidMention))?;
+
+        Ok(Self { id: RoleId(id) })
+    }
+}
+
+/// A user mention with the format `<@{id}>` or `<@!{id}>`.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct UserMention {
+    pub id: UserId,
+}
+
+impl UserMention {
+    /// Creates a new `UserMention`.
+    pub fn new<T>(id: T) -> Self
+    where
+        T: Into<UserId>,
+    {
+        Self { id: id.into() }
+    }
+}
+
+impl FromStr for UserMention {
+    type Err = InvalidMention;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if !s.starts_with("<@") || !s.ends_with('>') {
+            return Err(InvalidMention);
+        }
+
+        // SAFETY: The subslice is in bounds of the original slice.
+        let id = unsafe { s.get_unchecked(2..s.len() - 1) };
+
+        let id = match id.get(0..1) {
+            // SAFETY: The subslice is in bounds of the original slice.
+            Some("!") => unsafe { id.get_unchecked(1..id.len()) },
+            _ => id,
+        };
+
+        let id = id.parse().or(Err(InvalidMention))?;
+
+        Ok(Self { id: UserId(id) })
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{ArgumentsExt, CommandArguments, OwnedArguments};
+    use super::{
+        ArgumentsExt, ChannelMention, CommandArguments, InvalidMention, OwnedArguments,
+        RoleMention, UserMention,
+    };
 
     #[test]
     fn test_owned_arguments() {
@@ -431,5 +555,56 @@ mod tests {
         assert_eq!(args_ref.pop().unwrap(), "123");
         assert_eq!(args_ref, vec!["arg3"]);
         assert_eq!(args_ref.len(), 1);
+    }
+
+    #[test]
+    fn test_channel_mention() {
+        let s = "<#12345>";
+        assert_eq!(
+            s.parse::<ChannelMention>().unwrap(),
+            ChannelMention::new(12345)
+        );
+
+        let s = "<#1>";
+        assert_eq!(s.parse::<ChannelMention>().unwrap(), ChannelMention::new(1));
+
+        let s = "<1234>";
+        assert_eq!(s.parse::<ChannelMention>().unwrap_err(), InvalidMention);
+
+        let s = "<#1234";
+        assert_eq!(s.parse::<ChannelMention>().unwrap_err(), InvalidMention);
+    }
+
+    #[test]
+    fn test_role_mention() {
+        let s = "<@&12345>";
+        assert_eq!(s.parse::<RoleMention>().unwrap(), RoleMention::new(12345));
+
+        let s = "<@&1>";
+        assert_eq!(s.parse::<RoleMention>().unwrap(), RoleMention::new(1));
+
+        let s = "<&1234>";
+        assert_eq!(s.parse::<RoleMention>().unwrap_err(), InvalidMention);
+
+        let s = "<@&1234";
+        assert_eq!(s.parse::<RoleMention>().unwrap_err(), InvalidMention);
+    }
+
+    #[test]
+    fn test_user_mention() {
+        let s = "<@12345>";
+        assert_eq!(s.parse::<UserMention>().unwrap(), UserMention::new(12345));
+
+        let s = "<@!1>";
+        assert_eq!(s.parse::<UserMention>().unwrap(), UserMention::new(1));
+
+        let s = "<1234>";
+        assert_eq!(s.parse::<UserMention>().unwrap_err(), InvalidMention);
+
+        let s = "<@1234";
+        assert_eq!(s.parse::<UserMention>().unwrap_err(), InvalidMention);
+
+        let s = "<@!>";
+        assert_eq!(s.parse::<UserMention>().unwrap_err(), InvalidMention);
     }
 }
