@@ -1,6 +1,6 @@
 [package]
 name = "robbot"
-version = "0.6.0"
+version = "0.7.0"
 description = "robbot"
 edition = "2021"
 
@@ -9,7 +9,7 @@ authors = ["MrGunflame <mrgunflame@protonmail.com>"]
 license = "GPL-3.0"
 
 [dependencies]
-robbot-derive = { version = "0.6.0", path = "../robbot-derive" }
+robbot-derive = { version = "0.7.0", path = "../robbot-derive" }
 tokio = "1.17.0"
 async-trait = "0.1.52"
 serenity = { version = "0.10.10", default-features = false, features = ["builder", "model", "rustls_backend"] }

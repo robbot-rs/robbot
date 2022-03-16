@@ -1,6 +1,6 @@
 [package]
 name = "robbot-bin"
-version = "0.6.0"
+version = "0.7.0"
 description = "The robbot binary"
 edition = "2021"
 
@@ -28,6 +28,8 @@ lto = "fat"
 opt-level = 3
 
 [dependencies]
+robbot = { version = "0.7.0", path = "../robbot" }
+robbot-core = { version = "0.7.0", path = "../robbot-core" }
 tokio = { version = "1.17.0", features = ["full"] }
 serde = { version = "1.0.136", features = ["derive"] }
 serenity = { version = "0.10.10", default-features = false, features = ["builder", "cache", "client", "gateway", "http", "model", "rustls_backend"] }
@@ -41,11 +43,8 @@ futures = "0.3.21"
 reqwest = "0.11.10"
 itoa = "1.0.1"
 dtoa = "1.0.2"
-robbot-derive = { version = "0.6.0", path = "../robbot-derive" }
-robbot = { version = "0.6.0", path = "../robbot" }
 toml = "0.5.8"
 log = { version = "0.4.14", features = ["std", "serde"] }
-robbot-core = { version = "0.6.0", path = "../robbot-core" }
 
 [target.'cfg(target_family = "unix")'.dependencies]
 nix = "0.23.1"
