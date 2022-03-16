@@ -12,7 +12,7 @@ mod signal;
 const DEFAULT_CONFIG: &str = "./config.toml";
 
 use async_trait::async_trait;
-use clap::{App, Arg};
+use clap::Parser;
 use robbot::{
     arguments::CommandArguments, executor::Executor as _, Command as _, Context as ContextExt,
     Error,
@@ -30,26 +30,19 @@ use serenity::model::guild::Member;
 use serenity::model::id::GuildId;
 use serenity::model::user::User;
 
+#[derive(Clone, Debug, Parser)]
+#[clap(version, long_about = None)]
+struct Args {
+    #[clap(short, long, value_name = "FILE", default_value_t = String::from(DEFAULT_CONFIG))]
+    config: String,
+}
+
 #[tokio::main]
 async fn main() {
-    let matches = App::new("robbot")
-        .version("0.3.1")
-        .author("")
-        .about("")
-        .arg(
-            Arg::with_name("config")
-                .short("c")
-                .long("config")
-                .value_name("FILE")
-                .help("Provide a path to the config file")
-                .takes_value(true),
-        )
-        .get_matches();
-
-    let config = matches.value_of("config").unwrap_or(DEFAULT_CONFIG);
+    let args = Args::parse();
 
     // Load the config.toml file.
-    let config = config::from_file(config);
+    let config = config::from_file(args.config);
 
     signal::init();
     logger::init(&config);
