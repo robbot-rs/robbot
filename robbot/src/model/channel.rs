@@ -9,6 +9,7 @@ use super::user::User;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Encode, Decode)]
 pub struct Message {
@@ -192,6 +193,9 @@ impl AsRef<GuildId> for GuildMessage {
     }
 }
 
+/// An error indicating that a [`Message`] to [`GuildMessage`] conversation failed.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Error)]
+#[error("not a guild message")]
 pub struct NotAGuildMessage;
 
 impl TryFrom<Message> for GuildMessage {
