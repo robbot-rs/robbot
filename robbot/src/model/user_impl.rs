@@ -11,7 +11,7 @@ impl From<User> for user::User {
             discriminator: src.discriminator,
             name: src.name,
             banner: src.banner,
-            accent_color: src.accent_colour.and_then(|c| Some(c.into())),
+            accent_color: src.accent_colour.map(|v| v.into()),
         }
     }
 }
