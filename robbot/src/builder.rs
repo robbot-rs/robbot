@@ -1,7 +1,7 @@
 use crate as robbot;
+use crate::model::channel::MessageReference;
+use crate::util::color::Color;
 use crate::{Decode, Encode};
-
-use crate::model::channel::{Color, MessageReference};
 
 use serde::{Deserialize, Serialize};
 use std::convert::{From, Into};
