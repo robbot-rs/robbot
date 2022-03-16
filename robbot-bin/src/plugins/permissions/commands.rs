@@ -1,8 +1,8 @@
 use super::PERMISSION_MANAGE;
 
 use robbot::arguments::ArgumentsExt;
+use robbot::arguments::{RoleMention, UserMention};
 use robbot::builder::CreateMessage;
-use robbot::model::id::{RoleId, UserId};
 use robbot::store::{delete, insert};
 use robbot::{command, Context, Error, Result};
 use robbot_core::context::MessageContext;
@@ -29,12 +29,12 @@ async fn add(mut ctx: MessageContext) -> Result {
 
     if id.contains("@&") {
         // Expect a role.
-        let role_id: RoleId = id.parse().or(Err(Error::InvalidCommandUsage))?;
+        let role: RoleMention = id.parse().or(Err(Error::InvalidCommandUsage))?;
 
         for node in ctx.args.as_args() {
             let node = RolePermission {
                 guild_id,
-                role_id,
+                role_id: role.id,
                 node,
             };
 
@@ -42,12 +42,12 @@ async fn add(mut ctx: MessageContext) -> Result {
         }
     } else {
         // Expect a user.
-        let user_id: UserId = id.parse().or(Err(Error::InvalidCommandUsage))?;
+        let user: UserMention = id.parse().or(Err(Error::InvalidCommandUsage))?;
 
         for node in ctx.args.as_args() {
             let node = UserPermission {
                 guild_id,
-                user_id,
+                user_id: user.id,
                 node,
             };
 
@@ -81,12 +81,12 @@ async fn list(mut ctx: MessageContext) -> Result {
 
     if id.contains("@&") {
         // Expect a role.
-        let role_id: RoleId = id.parse().or(Err(Error::InvalidCommandUsage))?;
+        let role: RoleMention = id.parse().or(Err(Error::InvalidCommandUsage))?;
 
         let nodes = ctx
             .state
             .permissions()
-            .role_permissions(role_id, guild_id)
+            .role_permissions(role.id, guild_id)
             .await?;
 
         for node in nodes {
@@ -94,12 +94,12 @@ async fn list(mut ctx: MessageContext) -> Result {
         }
     } else {
         // Expect a user.
-        let user_id: UserId = id.parse().or(Err(Error::InvalidCommandUsage))?;
+        let user: UserMention = id.parse().or(Err(Error::InvalidCommandUsage))?;
 
         let nodes = ctx
             .state
             .permissions()
-            .user_permissions(user_id, guild_id)
+            .user_permissions(user.id, guild_id)
             .await?;
 
         for node in nodes {
@@ -137,24 +137,24 @@ async fn remove(mut ctx: MessageContext) -> Result {
 
     if id.contains("@&") {
         // Expect a role.
-        let role_id: RoleId = id.parse().or(Err(Error::InvalidCommandUsage))?;
+        let role: RoleMention = id.parse().or(Err(Error::InvalidCommandUsage))?;
 
         for node in ctx.args.as_args() {
             delete!(ctx.state.store(), RolePermission => {
                 guild_id == guild_id,
-                role_id == role_id,
+                role_id == role.id,
                 node == node,
             })
             .await?;
         }
     } else {
         // Expect a user.
-        let user_id: UserId = id.parse().or(Err(Error::InvalidCommandUsage))?;
+        let user: UserMention = id.parse().or(Err(Error::InvalidCommandUsage))?;
 
         for node in ctx.args.as_args() {
             delete!(ctx.state.store(), UserPermission => {
                 guild_id == guild_id,
-                user_id == user_id,
+                user_id == user.id,
                 node == node,
             })
             .await?;
