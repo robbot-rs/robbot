@@ -3,6 +3,24 @@ use crate::{Decode, Encode};
 
 use serde::{Deserialize, Serialize};
 
+/// A unique identifier for an Attachment.
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+)]
+pub struct AttachmentId(pub u64);
+
 /// A unique identifier for a Channel.
 #[derive(
     Copy,
@@ -127,6 +145,7 @@ macro_rules! impl_id {
     };
 }
 
+impl_id!(AttachmentId);
 impl_id!(ChannelId);
 impl_id!(EmojiId);
 impl_id!(GuildId);
