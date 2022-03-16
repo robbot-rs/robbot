@@ -1,15 +1,18 @@
 //!
 //! Primitives:
-//! - bool
-//! - u8, u16, u32, u64
-//! - i8, i16, i32, i64
-//! - f32, f64
+//! - [`bool`]
+//! - [`u8`], [`u16`], [`u32`], [`u64`]
+//! - [`i8`], [`i16`], [`i32`], [`i64`]
+//! - [`f32`], [`f64`]
 //!
 //! std-lib types:
-//! - Option<T>
-//! - Vec<T>
-//! - String
-//! - Box<T>
+//! - [`Option<T>`]
+//! - [`Vec<T>`]
+//! - [`String`]
+//! - [`Box<T>`]
+//!
+//! External types:
+//! - [`chrono::DateTime`]
 
 use std::io::{self, Read, Write};
 use std::string::FromUtf8Error;
@@ -405,6 +408,15 @@ where
     }
 }
 
+impl Encode for chrono::DateTime<chrono::Utc> {
+    fn encode<W>(&self, encoder: &mut Encoder<W>) -> Result<()>
+    where
+        W: Write,
+    {
+        encoder.encode_i64(self.timestamp_nanos())
+    }
+}
+
 impl Decode for bool {
     fn decode<R>(decoder: &mut Decoder<R>) -> Result<Self>
     where
@@ -562,6 +574,23 @@ where
     {
         let value = T::decode(decoder)?;
         Ok(Self::new(value))
+    }
+}
+
+impl Decode for chrono::DateTime<chrono::Utc> {
+    fn decode<R>(decoder: &mut Decoder<R>) -> Result<Self>
+    where
+        R: Read,
+    {
+        let timestamp_nanos = decoder.decode_i64()?;
+
+        let secs = timestamp_nanos / 1_000_000;
+        let nsecs = (timestamp_nanos % 1_000_000) as u32;
+
+        Ok(chrono::DateTime::from_utc(
+            chrono::NaiveDateTime::from_timestamp(secs, nsecs),
+            chrono::Utc,
+        ))
     }
 }
 
