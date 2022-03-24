@@ -421,7 +421,7 @@ impl ChannelMention {
 
 impl Display for ChannelMention {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "<#{}>", self.id.0)
+        write!(f, "<#{}>", self.id)
     }
 }
 
@@ -460,7 +460,7 @@ impl RoleMention {
 
 impl Display for RoleMention {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "<@&{}>", self.id.0)
+        write!(f, "<@&{}>", self.id)
     }
 }
 
@@ -494,6 +494,12 @@ impl UserMention {
         T: Into<UserId>,
     {
         Self { id: id.into() }
+    }
+}
+
+impl Display for UserMention {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "<@{}>", self.id)
     }
 }
 
