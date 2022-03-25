@@ -1,10 +1,14 @@
 use chrono::Local;
-use log::{Level, Log, Metadata, Record};
+use log::{Level, LevelFilter, Log, Metadata, Record};
 use robbot_core::config::Config;
 
-pub fn init(config: &Config) {
-    log::set_logger(&Logger).unwrap();
+pub fn set_log_level(config: &Config) {
     log::set_max_level(config.loglevel);
+}
+
+pub fn init() {
+    log::set_logger(&Logger).unwrap();
+    log::set_max_level(LevelFilter::Error);
 }
 
 pub struct Logger;

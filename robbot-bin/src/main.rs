@@ -41,11 +41,28 @@ struct Args {
 async fn main() {
     let args = Args::parse();
 
+    // Initialize the logger as early as possible.
+    logger::init();
+
     // Load the config.toml file.
-    let config = config::from_file(args.config);
+    let config = match config::from_file(&args.config) {
+        Ok(config) => config,
+        Err(err) => {
+            log::error!("Failed to read config file {}: {:?}", args.config, err);
+            std::process::exit(1);
+        }
+    };
+
+    // Check the config file.
+    // Empty prefix strings are not allowed.
+    if config.prefix.is_empty() {
+        log::error!("Invalid config file: prefix must be a non-empty string");
+        std::process::exit(1);
+    }
 
     signal::init();
-    logger::init(&config);
+
+    logger::set_log_level(&config);
 
     let gateway_intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_MEMBERS
@@ -136,7 +153,7 @@ impl EventHandler for Handler {
             self.state.hooks().dispatch_event(event).await;
         }
 
-        let msg = match message.content.strip_prefix('!') {
+        let msg = match message.content.strip_prefix(&self.state.config.prefix) {
             Some(msg) => msg,
             None => return,
         };

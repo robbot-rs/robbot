@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Config {
     pub token: String,
+    pub prefix: String,
     pub loglevel: LevelFilter,
     pub database: Database,
     pub admins: Vec<u64>,
@@ -13,6 +14,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             token: String::new(),
+            prefix: String::new(),
             loglevel: LevelFilter::Info,
             database: Database::default(),
             admins: Vec::new(),

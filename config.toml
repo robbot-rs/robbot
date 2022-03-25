@@ -1,5 +1,9 @@
 # Replace with your discord bot token.
 token = "<YOUR_TOKEN>"
+# The default command prefix
+# Possible values: Any non-empty UTF-8 valid string
+# Default value: "!"
+prefix = "!"
 # The logging level.
 # Possible options: error, warn, info, debug, trace
 # Default value: info
