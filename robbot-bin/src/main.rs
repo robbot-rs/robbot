@@ -13,6 +13,7 @@ const DEFAULT_CONFIG: &str = "./config.toml";
 
 use async_trait::async_trait;
 use clap::Parser;
+use robbot::builder::CreateMessage;
 use robbot::{
     arguments::CommandArguments, executor::Executor as _, Command as _, Context as ContextExt,
     Error,
@@ -174,7 +175,7 @@ impl EventHandler for Handler {
         let ctx = robbot_core::context::Context {
             raw_ctx: raw_ctx.clone(),
             state: self.state.clone(),
-            args: cmd_args,
+            args: cmd_args.clone(),
             event: message.clone(),
         };
 
@@ -202,6 +203,8 @@ impl EventHandler for Handler {
             }
         }
 
+        let path = cmd_args.as_parsed_args().join(" ");
+
         match cmd.executor() {
             Some(executor) => {
                 let res = executor.send(ctx.clone()).await;
@@ -210,15 +213,18 @@ impl EventHandler for Handler {
                     match err {
                         // Display command help message.
                         Error::InvalidCommandUsage => {
-                            let _ = serenity::model::id::ChannelId(message.channel_id.0)
-                                .send_message(&ctx.raw_ctx, |m| {
+                            let _ = ctx
+                                .respond(CreateMessage::new(|m| {
                                     m.embed(|e| {
-                                        e.title(format!("Command Help: {}", cmd.name()));
-                                        e.description(help::command(&cmd));
-                                        e
+                                        e.title(format!("Command Help: {}", path));
+                                        e.color(builtin::EMBED_COLOR);
+                                        e.description(help::command(
+                                            &cmd,
+                                            &path,
+                                            &self.state.config.prefix,
+                                        ));
                                     });
-                                    m
-                                })
+                                }))
                                 .await;
                         }
                         _ => {
@@ -229,18 +235,17 @@ impl EventHandler for Handler {
                 }
             }
             None => {
-                help::command(&cmd);
+                help::command(&cmd, &path, &self.state.config.prefix);
 
                 // Ignore error
-                let _ = serenity::model::id::ChannelId(message.channel_id.0)
-                    .send_message(&ctx.raw_ctx, |m| {
+                let _ = ctx
+                    .respond(CreateMessage::new(|m| {
                         m.embed(|e| {
-                            e.title(format!("Command Help: {}", cmd.name()));
-                            e.description(help::command(&cmd));
-                            e
+                            e.title(format!("Command Help: {}", path));
+                            e.color(builtin::EMBED_COLOR);
+                            e.description(help::command(&cmd, &path, &self.state.config.prefix));
                         });
-                        m
-                    })
+                    }))
                     .await;
             }
         }

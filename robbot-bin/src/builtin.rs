@@ -1,10 +1,16 @@
 use crate::help;
-use robbot::{arguments::ArgumentsExt, builder::CreateMessage, command, Context, Result};
-use robbot_core::{command::Command, context::MessageContext, state::State};
+
+use robbot::arguments::{ArgumentsExt, CommandArguments};
+use robbot::builder::CreateMessage;
+use robbot::{command, Context, Result};
+use robbot_core::command::Command;
+use robbot_core::context::MessageContext;
+use robbot_core::state::State;
+
 use serenity::utils::Color;
 
 /// The color of the embed used by all builtin commands.
-const EMBED_COLOR: Color = Color::from_rgb(0xFF, 0xA6, 0x00);
+pub const EMBED_COLOR: Color = Color::from_rgb(0xFF, 0xA6, 0x00);
 
 /// Loads all builtin functions into the [`State`]. If state
 /// is new or has no commands loaded, `init` will never fail.
@@ -24,19 +30,30 @@ pub fn init(state: &State) -> Result {
 /// more details about a command otherwise.
 #[command(
     description = "Show the global help message or a help message for a command.",
-    usage = "[Path to Command]",
-    example = "help"
+    usage = "[Path to Command]"
 )]
-async fn help(mut ctx: MessageContext) -> Result {
+async fn help(ctx: MessageContext) -> Result {
+    // FIXME: Calling `Arguments::to_owned` clones all strings which isn't necessary here.
+    let mut args = CommandArguments::from(ctx.args.as_args().to_owned());
+
+    let command = ctx.state.commands().get_command(&mut args);
+    let path = args.as_parsed_args().join(" ");
+
     let description = match ctx.args.is_empty() {
         // Try to show command help.
-        false => match ctx.state.commands().get_command(&mut ctx.args) {
-            Some(command) => help::command(&command),
+        false => match command {
+            Some(command) => help::command(&command, &path, &ctx.state.config.prefix),
             // Cannot find command, show global help instead.
-            None => help::global(&ctx.state.commands().list_root_commands()),
+            None => help::global(
+                &ctx.state.commands().list_root_commands(),
+                &ctx.state.config.prefix,
+            ),
         },
         // Show global help.
-        true => help::global(&ctx.state.commands().list_root_commands()),
+        true => help::global(
+            &ctx.state.commands().list_root_commands(),
+            &ctx.state.config.prefix,
+        ),
     };
 
     ctx.respond(CreateMessage::new(|m| {
