@@ -190,15 +190,18 @@ impl EventHandler for Handler {
         }
 
         #[cfg(feature = "permissions")]
-        {
-            if !permissions::has_permission(&ctx, cmd.permissions())
-                .await
-                .unwrap()
-            {
-                let _ = ctx
-                    .respond(":no_entry_sign: You are not allowed to run this command.")
-                    .await;
-
+        match permissions::has_permission(&ctx, cmd.permissions()).await {
+            Ok(ok) => {
+                if !ok {
+                    let _ = ctx
+                        .respond(":no_entry_sign: You are not allowed to run this command.")
+                        .await;
+                    return;
+                }
+            }
+            Err(err) => {
+                log::error!("Failed to check permissions: {:?}", err);
+                let _ = ctx.respond(":warning: Internal Server Error").await;
                 return;
             }
         }
