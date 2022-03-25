@@ -1,10 +1,16 @@
+//! Os-Signal interception
+//!
+//! This module provides utilities for intercepting os-signals.
+//!
+//! Most notably this provides [`subscribe`], [`terminate`] and [`ShutdownListener`] to
+//! listen and react to SIGINT/SIGTERM signals.
 use futures::future::BoxFuture;
+use parking_lot::Once;
 use tokio::sync::watch;
 
 use std::future::Future;
 use std::pin::Pin;
 use std::ptr;
-use std::sync::Once;
 use std::task::{Context, Poll};
 
 static TERM_ONCE: Once = Once::new();
@@ -16,12 +22,16 @@ pub fn subscribe<'a>() -> ShutdownListener<'a> {
     TERM_ONCE.call_once(|| {
         let (tx, _) = watch::channel(false);
 
+        // SAFETY: All other threads are blocked until this closure completes.
+        // No reads/writes occur until this closure is completes. No writes occur after
+        // this colsure completes.
         unsafe {
             TERM_TX = Box::leak(Box::new(tx)) as *const _;
         }
     });
 
-    // `TERM_TX` cannot be null, `watch::Sender<bool>` is Send + Sync.
+    // SAFETY: `TERM_TX` is a pointer to a valid object. Sharing the pointer across
+    // threads is safe, since `watch::Sender` is `Sync`.
     let tx = unsafe { &*TERM_TX };
 
     ShutdownListener::new(tx.subscribe())
@@ -30,12 +40,15 @@ pub fn subscribe<'a>() -> ShutdownListener<'a> {
 /// Sends a signal to terminate to all [`ShutdownListener`]s, prompting them
 /// to shut down. A `terminate()` call cannot be undone.
 pub fn terminate() {
-    // Skip terminate call, `TERM_TX` is null, noone is listening.
-    if !TERM_ONCE.is_completed() {
+    // Skip broadcasting the message, noone is listening.
+    if !TERM_ONCE.state().done() {
         return;
     }
 
+    // SAFETY: `TERM_TX` is a pointer to a valid object. Sharing the pointer across
+    // threads is safe, since `watch::Sender` is `Sync`.
     let tx = unsafe { &*TERM_TX };
+
     let _ = tx.send(true);
 }
 
