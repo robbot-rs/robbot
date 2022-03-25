@@ -7,7 +7,7 @@ pub(crate) fn global(commands: &[String], prefix: &str) -> String {
     // FIXME: Can pre-allocate at least the prefix and suffix of the string.
     let mut string = String::new();
 
-    let _ = writeln!(string, "{}", "__**Commands:**__");
+    let _ = writeln!(string, "__**Commands:**__");
 
     for command in commands {
         let _ = writeln!(string, "- {}", command);
