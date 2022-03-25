@@ -81,6 +81,11 @@ impl<'life0> Arguments<'life0> {
     pub fn iter(&self) -> impl Iterator<Item = &String> {
         self.0.iter()
     }
+
+    /// Clones all arguments into a new [`OwnedArguments`] list.
+    pub fn to_owned(&self) -> OwnedArguments {
+        OwnedArguments::from_iter(self.0.iter())
+    }
 }
 
 impl<'life0> ArgumentsExt for Arguments<'life0> {
@@ -344,6 +349,14 @@ impl CommandArguments {
     /// any routing was applied.
     pub fn as_full_args(&self) -> Arguments {
         Arguments::new(&self.owned)
+    }
+
+    /// Returns an [`Arguments`] list containing only arguments that were
+    /// parsed (removed).
+    pub fn as_parsed_args(&self) -> Arguments {
+        let slice: &[String] = self.owned.as_ref();
+
+        Arguments::new(&slice[..self.offset])
     }
 }
 
