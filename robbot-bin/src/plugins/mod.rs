@@ -22,11 +22,9 @@ pub async fn init(state: Arc<State>) -> Result {
     #[cfg(feature = "permissions")]
     permissions::init(&state).await?;
 
-    // customcommands::init(&state).await;
-
-    // guildsync::init(&state).await?;
-
-    // events::init(&state).await?;
+    customcommands::init(&state).await;
+    guildsync::init(&state).await?;
+    events::init(&state).await?;
 
     Ok(())
 }
