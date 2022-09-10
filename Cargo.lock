@@ -1397,6 +1397,7 @@ dependencies = [
  "itoa",
  "log",
  "nix",
+ "parking_lot 0.12.0",
  "regex",
  "reqwest",
  "robbot",
