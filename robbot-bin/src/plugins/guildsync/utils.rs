@@ -1,6 +1,6 @@
 use super::{GuildLink, GuildMember, GuildRank};
 
-use robbot::{Result, StoreData};
+use robbot::{store::delete, Result, StoreData};
 use robbot_core::context::Context;
 
 /// Run a sync task for a single link.
@@ -32,10 +32,10 @@ where
                 Some(api_member) => member_new.push((member, &api_member.rank)),
                 None => {
                     // Delete the member from the store.
-                    ctx.state
-                        .store()
-                        .delete(GuildMember::query().id(member.id))
-                        .await?;
+                    delete!(ctx.state.store(), GuildMember => {
+                        id == member.id,
+                    })
+                    .await?;
                 }
             }
         }

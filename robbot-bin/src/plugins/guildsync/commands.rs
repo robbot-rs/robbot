@@ -4,6 +4,7 @@ use super::{PERMISSION_MANAGE, PERMISSION_MANAGE_MEMBERS};
 use robbot::arguments::ArgumentsExt;
 use robbot::builder::CreateMessage;
 use robbot::prelude::*;
+use robbot::store::get;
 use robbot_core::context::MessageContext;
 use serenity::model::id::UserId;
 use std::fmt::Write;
@@ -43,11 +44,11 @@ async fn verify(mut ctx: MessageContext) -> Result {
 
     for guild_member in guild_members {
         if account_name == guild_member.name {
-            let members = ctx
-                .state
-                .store()
-                .get(GuildMember::query().link_id(guild_link.id).user_id(user_id))
-                .await?;
+            let members = get!(ctx.state.store(), GuildMember => {
+                link_id == guild_link.id,
+                user_id == user_id,
+            })
+            .await?;
 
             log::debug!("{:?}", members);
 
@@ -205,11 +206,10 @@ async fn list(ctx: MessageContext) -> Result {
 }
 
 pub(super) async fn get_guild_link(ctx: &MessageContext) -> std::result::Result<GuildLink, Error> {
-    let guild_links = ctx
-        .state
-        .store()
-        .get(GuildLink::query().guild_id(ctx.event.guild_id.unwrap()))
-        .await?;
+    let guild_links = get!(ctx.state.store(), GuildLink => {
+        guild_id == ctx.event.guild_id.unwrap()
+    })
+    .await?;
 
     if guild_links.len() > 1 {
         unimplemented!();
