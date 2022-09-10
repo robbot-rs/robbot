@@ -7,8 +7,8 @@ use robbot::prelude::*;
 use std::fmt::Write;
 
 use robbot::arguments::ArgumentsExt;
+use robbot::store::get;
 use robbot::store::id::Snowflake;
-use robbot::StoreData;
 use robbot_core::context::MessageContext;
 
 // #[command(
@@ -86,11 +86,10 @@ async fn create(mut ctx: MessageContext) -> Result {
 
 #[command(description = "List all upcoming events.", guild_only = true)]
 async fn list(ctx: MessageContext) -> Result {
-    let events = ctx
-        .state
-        .store()
-        .get(Event::query().guild_id(ctx.event.guild_id.unwrap()))
-        .await?;
+    let events = get!(ctx.state.store(), Event => {
+        guild_id == ctx.event.guild_id.unwrap()
+    })
+    .await?;
 
     let description = match events.len() {
         0 => String::from("No upcoming events."),

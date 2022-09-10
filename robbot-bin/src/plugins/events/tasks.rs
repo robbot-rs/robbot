@@ -1,13 +1,11 @@
 use super::Event;
 
 use chrono::{NaiveDateTime, TimeZone};
+use robbot::model::id::GuildId;
 use robbot::prelude::*;
-use serenity::{
-    model::id::{ChannelId, GuildId},
-    utils::Color,
-};
+use serenity::{model::id::ChannelId, utils::Color};
 
-use robbot::store::StoreData;
+use robbot::store::get;
 use robbot_core::context::{Context, TaskContext};
 
 const EMBED_COLOR: Color = Color::from_rgb(0xFF, 0xA6, 0x00);
@@ -18,15 +16,14 @@ pub(super) async fn _announce(ctx: TaskContext) -> Result {
     // FAIR
     // const GID: GuildId = GuildId(639101079035969536);
 
-    let events = ctx.state.store().get(Event::query().guild_id(GID)).await?;
+    let events = get!(ctx.state.store(), Event => {
+        guild_id == GID,
+    })
+    .await?;
 
     let now = chrono::Utc::now();
 
-    println!("event time");
-
     for mut event in events {
-        println!("{:?}", event);
-
         let timezone: chrono_tz::Tz = event.timezone.parse().unwrap();
         // let event_time = timezone.timestamp(event.time as i64, 0);
         let event_time = timezone

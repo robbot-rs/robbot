@@ -2,11 +2,11 @@ mod commands;
 // mod sql;
 mod tasks;
 
+use robbot::model::id::GuildId;
 use robbot::store::id::Snowflake;
+use robbot::store::{create, StoreData};
+use robbot_core::command::Command;
 use robbot_core::state::State;
-
-use robbot_derive::StoreData;
-use serenity::model::id::GuildId;
 
 use robbot::Result;
 
@@ -36,7 +36,7 @@ impl Default for Event {
 }
 
 pub async fn init(state: &State) -> Result {
-    state.store().create::<Event>().await?;
+    create!(state.store(), Event).await?;
 
     state.commands().load_command(events(), None)?;
     state
@@ -55,13 +55,14 @@ pub async fn init(state: &State) -> Result {
     Ok(())
 }
 
-crate::command!(
-    events,
-    description: "events"
-);
-
 crate::task!(
     announce,
-    robbot_core::task::TaskSchedule::Interval(chrono::Duration::hours(1)),
+    robbot::task::TaskSchedule::Interval(chrono::Duration::hours(1)),
     tasks::_announce,
 );
+
+fn events() -> Command {
+    let mut cmd = Command::new("events");
+    cmd.set_description("events");
+    cmd
+}
