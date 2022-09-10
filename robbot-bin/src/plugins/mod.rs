@@ -4,11 +4,11 @@ pub mod debug;
 #[cfg(feature = "permissions")]
 pub mod permissions;
 
-// pub mod events;
-// pub mod guildsync;
+pub mod events;
+pub mod guildsync;
 
-// pub mod customcommands;
-// pub mod temprole;
+pub mod customcommands;
+pub mod temprole;
 
 use robbot::Result;
 use robbot_core::state::State;
