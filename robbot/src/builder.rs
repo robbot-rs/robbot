@@ -1,12 +1,11 @@
 use crate as robbot;
 use crate::model::channel::MessageReference;
+use crate::model::id::{ChannelId, RoleId};
 use crate::util::color::Color;
 use crate::{Decode, Encode};
 
 use serde::{Deserialize, Serialize};
 use std::convert::{From, Into};
-
-use serenity::model::id::{ChannelId, RoleId};
 
 /// [`CreateMessage`] is used to construct a new
 /// message.
@@ -213,7 +212,12 @@ impl EditMember {
         }
 
         if let Some(roles) = self.roles {
-            builder.roles(roles);
+            builder.roles(
+                roles
+                    .into_iter()
+                    .map(|r| r.into())
+                    .collect::<Vec<serenity::model::id::RoleId>>(),
+            );
         }
 
         if let Some(voice_channel) = self.voice_channel {

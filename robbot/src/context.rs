@@ -1,11 +1,10 @@
 use crate::builder::{CreateMessage, EditMember};
 use crate::model::channel::Message;
 
-use crate::model::id::{ChannelId, MessageId};
+use crate::model::guild::Member;
+use crate::model::id::{ChannelId, GuildId, MessageId, UserId};
 
 use serenity::model::channel::ReactionType;
-use serenity::model::guild::Member;
-use serenity::model::id::{GuildId, UserId};
 
 use async_trait::async_trait;
 
@@ -76,4 +75,6 @@ pub trait Context {
         self.create_reaction(message_id, channel_id, reaction.into())
             .await
     }
+
+    async fn get_member(&self, guild_id: GuildId, user_id: UserId) -> Result<Member, Self::Error>;
 }

@@ -1,4 +1,4 @@
-use robbot::Error;
+use robbot::{model::id::RoleId, Error};
 use robbot_core::context::MessageContext;
 
 /// Returns whether the command caller (determined by `ctx.author`) satisfies
@@ -18,7 +18,7 @@ pub async fn has_permission(ctx: &MessageContext, permissions: &[String]) -> Res
     };
 
     // All admins defined in the config file are always allowed.
-    if ctx.state.config.admins.contains(&ctx.event.author.id.0) {
+    if ctx.state.config.admins.contains(&ctx.event.author.id) {
         return Ok(true);
     }
 
@@ -41,11 +41,18 @@ pub async fn has_permission(ctx: &MessageContext, permissions: &[String]) -> Res
         }
     };
 
+    let user_id = ctx.event.author.id;
+    let roles: Vec<_> = member
+        .roles
+        .into_iter()
+        .map(|role| RoleId(role.0))
+        .collect();
+
     for permission in permissions {
         let has_permission = ctx
             .state
             .permissions()
-            .has_permission(&member, permission)
+            .has_permission(user_id, guild_id, &roles, permission)
             .await?;
 
         // User is not allowed to run the command.

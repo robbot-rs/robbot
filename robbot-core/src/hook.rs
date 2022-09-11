@@ -111,6 +111,7 @@ enum Message {
     DispatchEvent(EventData),
 }
 
+#[derive(Debug)]
 pub struct HookController {
     tx: mpsc::Sender<Message>,
 }

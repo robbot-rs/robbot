@@ -5,7 +5,7 @@ pub mod lazy;
 use async_trait::async_trait;
 use std::error::Error;
 
-pub use robbot_derive::{create, delete, get, get_one, insert};
+pub use robbot_derive::{create, delete, get, get_one, insert, StoreData};
 
 #[async_trait]
 pub trait Store: Sized {

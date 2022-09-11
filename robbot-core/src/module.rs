@@ -86,6 +86,7 @@ impl Hash for LoadedModule {
     }
 }
 
+#[derive(Debug)]
 struct InnerModuleHandler {
     map: RwLock<HashSet<LoadedModule>>,
     counter: AtomicU32,
@@ -102,7 +103,7 @@ impl InnerModuleHandler {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ModuleHandler {
     inner: Arc<InnerModuleHandler>,
 }

@@ -17,7 +17,7 @@ use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Command {
     pub name: String,
     pub description: String,
@@ -371,7 +371,7 @@ impl Hash for SubCommand {
 
 unsafe impl Sync for SubCommand {}
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(crate) struct InnerCommandHandler {
     commands: RwLock<HashSet<SubCommand>>,
 }
@@ -518,7 +518,7 @@ impl<'a, 'b> RemoveOptions<'a, 'b> {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct CommandHandler {
     pub(crate) inner: Arc<InnerCommandHandler>,
 }

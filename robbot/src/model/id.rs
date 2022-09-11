@@ -151,6 +151,18 @@ macro_rules! impl_id {
                 Self(src.0)
             }
         }
+
+        impl From<$t> for serenity::model::id::$t {
+            fn from(src: $t) -> serenity::model::id::$t {
+                serenity::model::id::$t(src.0)
+            }
+        }
+
+        impl AsRef<$t> for $t {
+            fn as_ref(&self) -> &$t {
+                self
+            }
+        }
     };
 }
 

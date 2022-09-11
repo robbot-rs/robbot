@@ -1,3 +1,5 @@
+use robbot::model::id::UserId;
+
 use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +9,7 @@ pub struct Config {
     pub prefix: String,
     pub loglevel: LevelFilter,
     pub database: Database,
-    pub admins: Vec<u64>,
+    pub admins: Vec<UserId>,
 }
 
 impl Default for Config {
