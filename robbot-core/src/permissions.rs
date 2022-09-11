@@ -1,15 +1,16 @@
+use crate::context::Context;
 use crate::store::mysql::MysqlStore;
 use crate::store::Error;
 
+use robbot::model::channel::Message;
 use robbot::model::id::{GuildId, RoleId, UserId};
+use robbot::model::InvalidModelData;
 use robbot::store::get;
+use robbot::store::lazy::LazyStore;
 use robbot::StoreData;
 
-use robbot::store::lazy::LazyStore;
-use serenity::model::guild::Member;
-
 // TODO: Make PermissionHandler with any type of store.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PermissionHandler {
     store: LazyStore<MysqlStore>,
 }
@@ -24,25 +25,23 @@ impl PermissionHandler {
     /// Returns `true` if the member effectively has the permission node.
     pub async fn has_permission(
         &self,
-        member: &Member,
+        user_id: UserId,
+        guild_id: GuildId,
+        roles: &[RoleId],
         node: impl AsRef<str>,
     ) -> Result<bool, Error> {
         // Check the user for permissions.
         if self
-            .user_has_permission(
-                UserId(member.user.id.0),
-                GuildId(member.guild_id.0),
-                node.as_ref(),
-            )
+            .user_has_permission(user_id, guild_id, node.as_ref())
             .await?
         {
             return Ok(true);
         }
 
         // Check all roles for permissions.
-        for role in &member.roles {
+        for role_id in roles {
             if self
-                .role_has_permission(RoleId(role.0), GuildId(member.guild_id.0), node.as_ref())
+                .role_has_permission(*role_id, guild_id, node.as_ref())
                 .await?
             {
                 return Ok(true);
@@ -133,4 +132,46 @@ pub struct RolePermission {
     pub guild_id: GuildId,
     pub role_id: RoleId,
     pub node: String,
+}
+
+/// Returns whether the command caller (determined by `ctx.author`) satisfies
+/// all `permissions`. If `has_permission` returns an Error, the command should
+/// either be aborted or rejected.
+pub async fn has_permission(ctx: &Context<Message>, permissions: &[String]) -> Result<bool, Error> {
+    // Skip the permission checks if the command requires no permissions.
+    if permissions.is_empty() {
+        return Ok(true);
+    }
+
+    // Commands from DMs are always allowed from any user.
+    let guild_id = match ctx.event.guild_id {
+        Some(guild_id) => guild_id,
+        None => return Ok(true),
+    };
+
+    // All admins defined in the config file are always allowed.
+    if ctx.state.config.admins.contains(&ctx.event.author.id) {
+        return Ok(true);
+    }
+
+    let member = match &ctx.event.member {
+        Some(member) => member,
+        None => return Err(InvalidModelData.into()),
+    };
+
+    let user_id = ctx.event.author.id;
+
+    for permission in permissions {
+        let has_permission = ctx
+            .state
+            .permissions()
+            .has_permission(user_id, guild_id, &member.roles, permission)
+            .await?;
+
+        if !has_permission {
+            return Ok(false);
+        }
+    }
+
+    Ok(true)
 }
