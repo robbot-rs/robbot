@@ -14,7 +14,7 @@ use std::fmt::{self, Display, Formatter};
 pub type Error = sqlx::Error;
 
 /// A Store using the MySQL database.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MysqlStore {
     pool: MySqlPool,
 }

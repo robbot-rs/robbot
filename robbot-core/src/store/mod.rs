@@ -10,8 +10,14 @@ pub type Result<T> = result::Result<T, Error>;
 #[derive(Debug)]
 pub struct Error(Box<dyn StdError + Send + Sync + 'static>);
 
-impl AsRef<dyn StdError + Send + 'static> for Error {
-    fn as_ref(&self) -> &(dyn StdError + Send + 'static) {
+impl AsRef<dyn StdError + 'static> for Error {
+    fn as_ref(&self) -> &(dyn StdError + 'static) {
+        &*self.0
+    }
+}
+
+impl AsRef<dyn StdError + Sync + Send + 'static> for Error {
+    fn as_ref(&self) -> &(dyn StdError + Sync + Send + 'static) {
         &*self.0
     }
 }

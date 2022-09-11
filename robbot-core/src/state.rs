@@ -15,6 +15,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 /// The global shared state.
+#[derive(Debug)]
 pub struct State {
     pub config: Arc<Config>,
     commands: CommandHandler,
