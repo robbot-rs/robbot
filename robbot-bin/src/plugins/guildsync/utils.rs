@@ -1,6 +1,9 @@
 use super::{GuildLink, GuildMember, GuildRank};
 
-use robbot::{store::delete, Result, StoreData};
+use robbot::builder::EditMember;
+use robbot::context::Context as _;
+use robbot::model::guild::Member;
+use robbot::{store::delete, Result};
 use robbot_core::context::Context;
 
 /// Run a sync task for a single link.
@@ -11,6 +14,7 @@ use robbot_core::context::Context;
 /// in the store but not in the API, it is removed from the store.
 pub(super) async fn update_link<T>(ctx: &Context<T>, guildlink: GuildLink) -> Result
 where
+    T: Sync + Send,
 {
     // Fetch members from database.
     let members = guildlink.members(ctx).await?;
@@ -45,12 +49,14 @@ where
 
     let ranks = guildlink.ranks(ctx).await?;
 
-    let mut users = serenity::model::guild::Guild::get(&ctx.raw_ctx, guildlink.guild_id)
+    let users = serenity::model::guild::Guild::get(&ctx.raw_ctx, guildlink.guild_id)
         .await?
         .members(&ctx.raw_ctx, None, None)
         .await?;
 
-    for user in users.iter_mut() {
+    for user in users.into_iter() {
+        let mut user: Member = user.into();
+
         // Find the users associated member and their rank.
         let rank = members
             .iter()
@@ -58,7 +64,7 @@ where
             .map(|(_, rank)| rank);
 
         // User is not a guild member.
-        update_user(ctx, user, rank, &ranks).await?;
+        update_user(ctx, &mut user, rank, &ranks).await?;
     }
 
     Ok(())
@@ -67,10 +73,13 @@ where
 /// Update a user's roles.
 pub(super) async fn update_user<T>(
     ctx: &Context<T>,
-    member: &mut serenity::model::guild::Member,
+    member: &mut Member,
     member_rank: Option<impl AsRef<str>>,
     ranks: &[GuildRank],
-) -> Result {
+) -> Result
+where
+    T: Send + Sync,
+{
     let mut roles = member.roles.clone();
 
     match member_rank {
@@ -140,12 +149,14 @@ pub(super) async fn update_user<T>(
     }
 
     if roles != member.roles {
-        member
-            .edit(&ctx.raw_ctx, |edit_user| {
-                edit_user.roles(roles);
-                edit_user
-            })
-            .await?;
+        ctx.edit_member(
+            member.guild_id,
+            member.user.id,
+            EditMember::new(|m| {
+                m.roles(roles);
+            }),
+        )
+        .await?;
     }
 
     Ok(())

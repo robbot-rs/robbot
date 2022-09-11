@@ -1,3 +1,4 @@
+//! Sync Guild Wars 2 guild members to users.
 mod commands;
 mod gw2api;
 mod task;
@@ -37,6 +38,10 @@ pub async fn init(state: &State) -> Result {
         let guildrank = Box::new(Mutex::new(SnowflakeGenerator::new_unchecked(0)));
         GUILD_RANK_ID_GENERATOR = Box::leak(guildrank) as *const _;
     }
+
+    state
+        .commands()
+        .load_command(commands::verify_api(), None)?;
 
     state.commands().load_command(guildsync(), None)?;
     state

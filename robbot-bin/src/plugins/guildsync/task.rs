@@ -6,7 +6,10 @@ use robbot_core::context::Context;
 
 use super::GuildLink;
 
-pub(super) async fn _sync<T>(ctx: Context<T>) -> Result {
+pub(super) async fn _sync<T>(ctx: Context<T>) -> Result
+where
+    T: Sync + Send,
+{
     let links = get!(ctx.state.store(), GuildLink).await?;
 
     for link in links {
