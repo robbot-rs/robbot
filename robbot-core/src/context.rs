@@ -10,13 +10,14 @@ use std::sync::Arc;
 
 use robbot::builder::EditMember;
 use robbot::model::channel::Message;
-use robbot::model::id::{ChannelId, MessageId};
+use robbot::model::guild::Member;
+use robbot::model::id::{ChannelId, GuildId, MessageId, UserId};
 
-use serenity::model::guild::Member;
-use serenity::model::id::{GuildId, UserId};
 use serenity::utils::hashmap_to_json_map;
 
 use robbot::hook::{HookEvent, HookEventWrapper};
+
+use std::fmt::{self, Debug, Formatter};
 
 /// An alias for `Context<Message>`. This context is received by
 /// command handlers.
@@ -107,9 +108,15 @@ where
             .raw_ctx
             .http
             .edit_member(guild_id.0, user_id.0, &hashmap_to_json_map(builder.0))
-            .await?;
+            .await;
 
-        Ok(member)
+        member.map(|m| m.into())
+    }
+
+    async fn get_member(&self, guild_id: GuildId, user_id: UserId) -> Result<Member, Self::Error> {
+        let member = self.raw_ctx.http.get_member(guild_id.0, user_id.0).await;
+
+        member.map(|m| m.into())
     }
 }
 
@@ -128,5 +135,18 @@ where
 {
     fn as_ref(&self) -> &MessageId {
         self.event.as_ref()
+    }
+}
+
+impl<T> Debug for Context<T>
+where
+    T: Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Context {{ raw_ctx: ???, state: {:?}, args: {:?}, event: {:?} }}",
+            self.state, self.args, self.event
+        )
     }
 }
