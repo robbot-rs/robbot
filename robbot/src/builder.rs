@@ -229,3 +229,33 @@ impl EditMember {
         }
     }
 }
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct EditMessage {
+    content: Option<String>,
+}
+
+impl EditMessage {
+    pub fn new<F>(f: F) -> Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        let mut builder = Self::default();
+        f(&mut builder);
+        builder
+    }
+
+    pub fn content<T>(&mut self, content: T) -> &mut Self
+    where
+        T: ToString,
+    {
+        self.content = Some(content.to_string());
+        self
+    }
+
+    pub(crate) fn fill_builder(self, builder: &mut serenity::builder::EditMessage) {
+        if let Some(content) = self.content {
+            builder.content(content);
+        }
+    }
+}

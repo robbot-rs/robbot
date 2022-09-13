@@ -5,7 +5,7 @@ use std::future::Future;
 #[async_trait]
 pub trait Executor<T>
 where
-    T: Context + Send,
+    T: Send + Sync,
 {
     /// Create a new `Executor` from a future or static async
     /// function.
@@ -15,5 +15,5 @@ where
         T: 'static;
 
     /// Call the executor with the context.
-    async fn send(&self, ctx: T) -> Result;
+    async fn send(&self, ctx: Context<T>) -> Result;
 }
