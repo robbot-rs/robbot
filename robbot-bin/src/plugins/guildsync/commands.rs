@@ -30,8 +30,15 @@ async fn verify_api(mut ctx: MessageContext) -> Result {
     // Api key are always exactly 72 ascii chars in length.
     if token.len() != 72 {
         let _ = ctx
-            .respond("This doesn't seem like a valid token format.")
+            .send_message(
+                ctx.event.channel_id,
+                format!(
+                    "{} This doesn't seem like a valid token format.",
+                    ctx.event.author.id.mention()
+                ),
+            )
             .await;
+
         return Ok(());
     }
 
