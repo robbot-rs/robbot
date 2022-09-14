@@ -260,6 +260,27 @@ where
 
         Ok(member.into())
     }
+
+    pub async fn edit_member<B>(
+        &self,
+        guild_id: GuildId,
+        user_id: UserId,
+        builder: B,
+    ) -> Result<Member, Error>
+    where
+        B: Into<EditMember>,
+    {
+        let builder = builder.into();
+
+        let member = serenity::model::id::GuildId(guild_id.0)
+            .edit_member(&self.raw_ctx, user_id, |m| {
+                builder.fill_builder(m);
+                m
+            })
+            .await?;
+
+        Ok(member.into())
+    }
 }
 
 impl<T, S> Context<T, S>
@@ -327,6 +348,42 @@ where
             .await?;
 
         Ok(members.into_iter().map(|m| m.into()).collect())
+    }
+
+    pub async fn kick(&self, user_id: UserId) -> Result<(), Error> {
+        serenity::model::id::GuildId(self.guild_id.0)
+            .kick(&self.ctx.raw_ctx, user_id)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn ban(&self, user_id: UserId, dmd: u8) -> Result<(), Error> {
+        serenity::model::id::GuildId(self.guild_id.0)
+            .ban(&self.ctx.raw_ctx, user_id, dmd)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn unban(&self, user_id: UserId) -> Result<(), Error> {
+        serenity::model::id::GuildId(self.guild_id.0)
+            .unban(&self.ctx.raw_ctx, user_id)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn move_member(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+    ) -> Result<Member, Error> {
+        let member = serenity::model::id::GuildId(self.guild_id.0)
+            .move_member(&self.ctx.raw_ctx, user_id, channel_id)
+            .await?;
+
+        Ok(member.into())
     }
 
     // pub fn members_iter(&self) -> impl Stream<Item = Result<Member, Error>> {}
