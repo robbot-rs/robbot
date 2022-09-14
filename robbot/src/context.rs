@@ -138,7 +138,7 @@ where
     /// use robbot::model::id::ChannelId;
     ///
     /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let ctx: Context<()> = unsafe { MaybeUninit::uninit().assume_init() };
+    /// # let ctx: Context<(), ()> = unsafe { MaybeUninit::uninit().assume_init() };
     /// #
     /// ctx.send_message(ChannelId(1234), CreateMessage::new(|m| {
     ///     m.content("Hello World!");
@@ -155,7 +155,7 @@ where
     /// use robbot::model::id::ChannelId;
     ///
     /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let ctx: Context<()> = unsafe { MaybeUninit::uninit().assume_init() };
+    /// # let ctx: Context<(), ()> = unsafe { MaybeUninit::uninit().assume_init() };
     /// #
     /// ctx.send_message(ChannelId(1234), "Hello World!").await?;
     /// # Ok(())
