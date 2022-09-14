@@ -1,7 +1,6 @@
 use super::{GuildLink, GuildMember, GuildRank};
 
 use robbot::builder::EditMember;
-use robbot::context::Context as _;
 use robbot::model::guild::Member;
 use robbot::{store::delete, Result};
 use robbot_core::context::Context;

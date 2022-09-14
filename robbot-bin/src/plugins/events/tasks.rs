@@ -71,7 +71,10 @@ async fn announce_event<T>(
     channel_id: ChannelId,
     event: Event,
     timestamp: i64,
-) -> Result {
+) -> Result
+where
+    T: Send + Sync,
+{
     let description = format!(
         "{}\n\n**When:** <t:{}:R>\n**Can you participate?**\n:white_check_mark:: Yes\n:x:: No",
         event.description, timestamp,

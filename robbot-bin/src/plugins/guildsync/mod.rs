@@ -11,7 +11,6 @@ use robbot::model::id::{GuildId, RoleId, UserId};
 use robbot::store::id::{Snowflake, SnowflakeGenerator};
 use robbot::store::{create, delete, get};
 use robbot::task::TaskSchedule;
-use robbot::Context as _;
 use robbot::{Error, Result, StoreData};
 use robbot_core::command::Command;
 use robbot_core::context::{Context, MessageContext};
@@ -116,10 +115,10 @@ impl GuildLink {
         }
     }
 
-    pub async fn members<T>(
-        &self,
-        ctx: &Context<T>,
-    ) -> std::result::Result<Vec<GuildMember>, Error> {
+    pub async fn members<T>(&self, ctx: &Context<T>) -> std::result::Result<Vec<GuildMember>, Error>
+    where
+        T: Send + Sync,
+    {
         let members = get!(ctx.state.store(), GuildMember => {
             link_id == self.id,
         })
@@ -128,7 +127,10 @@ impl GuildLink {
         Ok(members)
     }
 
-    pub async fn ranks<T>(&self, ctx: &Context<T>) -> std::result::Result<Vec<GuildRank>, Error> {
+    pub async fn ranks<T>(&self, ctx: &Context<T>) -> std::result::Result<Vec<GuildRank>, Error>
+    where
+        T: Send + Sync,
+    {
         let ranks = get!(ctx.state.store(), GuildRank => {
             link_id == self.id,
         })

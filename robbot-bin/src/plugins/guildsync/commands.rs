@@ -119,7 +119,7 @@ async fn verify(mut ctx: MessageContext) -> Result {
 
     let guild_id = ctx.event.guild_id.unwrap();
 
-    let mut user = match ctx.get_member(guild_id, user_id.into()).await {
+    let mut user = match ctx.member(guild_id, user_id.into()).await {
         Ok(user) => user,
         Err(_) => {
             let _ = ctx
@@ -323,7 +323,7 @@ async fn verify_user(
 
     let ranks = guild_link.ranks(ctx).await?;
 
-    let mut user = match ctx.get_member(guild_id, user_id.into()).await {
+    let mut user = match ctx.member(guild_id, user_id.into()).await {
         Ok(user) => user,
         Err(_) => return Err(VerifyError::UserNotInGuild),
     };
