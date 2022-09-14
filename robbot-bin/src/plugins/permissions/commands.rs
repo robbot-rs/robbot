@@ -4,7 +4,7 @@ use robbot::arguments::ArgumentsExt;
 use robbot::arguments::{RoleMention, UserMention};
 use robbot::builder::CreateMessage;
 use robbot::store::{delete, insert};
-use robbot::{command, Context, Error, Result};
+use robbot::{command, Error, Result};
 use robbot_core::context::MessageContext;
 use robbot_core::permissions::{RolePermission, UserPermission};
 

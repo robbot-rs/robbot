@@ -2,7 +2,7 @@ use crate::help;
 
 use robbot::arguments::{ArgumentsExt, CommandArguments};
 use robbot::builder::CreateMessage;
-use robbot::{command, Context, Result};
+use robbot::{command, Result};
 use robbot_core::command::Command;
 use robbot_core::context::MessageContext;
 use robbot_core::state::State;

@@ -1,7 +1,6 @@
 use crate::context::Context;
-use crate::executor::Executor;
 
-use robbot::executor::Executor as ExecutorExt;
+use robbot::executor::Executor;
 use robbot::hook::{EventData, EventKind, HookEvent};
 use robbot::hook::{GuildMemberUpdateData, MessageData};
 
@@ -175,9 +174,9 @@ where
         tokio::task::spawn(async move {
             while let Ok((data, ctx)) = self.rx.recv().await {
                 if let Ok(event) = T::try_from(data) {
-                    let ctx = Context::new(ctx.raw_ctx, ctx.state, event);
+                    let (ctx, _) = ctx.swap(event);
 
-                    match self.executor.send(ctx).await {
+                    match self.executor.call(ctx).await {
                         Ok(_) => (),
                         Err(err) => {
                             log::error!("Hook failed to execute: {:?}", err);
