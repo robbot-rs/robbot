@@ -1,7 +1,6 @@
 use crate::context::Context;
-use crate::executor::Executor;
 
-use robbot::executor::Executor as ExecutorExt;
+use robbot::executor::Executor;
 use robbot::task::TaskSchedule;
 
 use chrono::{DateTime, Duration, Utc};
@@ -180,7 +179,7 @@ impl InnerTaskScheduler {
             task::spawn(async move {
                 log::info!("Spawning task {}", task.name);
 
-                let res = task.executor.send(ctx.unwrap()).await;
+                let res = task.executor.call(ctx.unwrap()).await;
                 match res {
                     Ok(_) => log::info!("Task {} completed", task.name),
                     Err(err) => log::error!("Task {} failed: {:?}", task.name, err),

@@ -2,7 +2,6 @@ use crate as robbot;
 use crate::{Decode, Encode};
 
 use super::id::{GuildId, RoleId};
-use super::permissions::Permissions;
 use super::user::User;
 
 use chrono::{DateTime, Utc};

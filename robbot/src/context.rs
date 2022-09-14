@@ -1,3 +1,5 @@
+use std::fmt::{self, Debug, Formatter};
+
 use crate::builder::{CreateMessage, EditMember, EditMessage};
 use crate::model::channel::Message;
 
@@ -86,18 +88,44 @@ pub enum Error {
     Raw(#[from] serenity::Error),
 }
 
-pub struct Context<T>
+#[derive(Clone)]
+pub struct Context<T, S>
 where
     T: Send + Sync,
+    S: Send + Sync,
 {
-    raw_ctx: serenity::client::Context,
-    event: T,
+    pub raw_ctx: serenity::client::Context,
+    pub event: T,
+    pub state: S,
 }
 
-impl<T> Context<T>
+impl<T, S> Context<T, S>
 where
     T: Send + Sync,
+    S: Send + Sync,
 {
+    /// Swaps out the event of the `Context`. Returns the `Context` with the new event and the
+    /// old event.
+    pub fn swap<U>(self, event: U) -> (Context<U, S>, T)
+    where
+        U: Send + Sync,
+    {
+        let Self {
+            raw_ctx,
+            event: old_event,
+            state,
+        } = self;
+
+        (
+            Context {
+                raw_ctx,
+                event,
+                state,
+            },
+            old_event,
+        )
+    }
+
     /// Sends a new message in the channel with the given id.
     ///
     /// # Examples
@@ -234,9 +262,10 @@ where
     }
 }
 
-impl<T> Context<T>
+impl<T, S> Context<T, S>
 where
     T: Send + Sync + AsRef<ChannelId> + AsRef<MessageId>,
+    S: Send + Sync,
 {
     pub async fn respond<M>(&self, message: M) -> Result<Message, Error>
     where
@@ -262,19 +291,21 @@ where
     }
 }
 
-pub struct GuildContext<'a, T>
+pub struct GuildContext<'a, T, S>
 where
     T: Send + Sync,
+    S: Send + Sync,
 {
-    ctx: &'a Context<T>,
+    ctx: &'a Context<T, S>,
     guild_id: GuildId,
 }
 
-impl<'a, T> GuildContext<'a, T>
+impl<'a, T, S> GuildContext<'a, T, S>
 where
     T: Send + Sync,
+    S: Send + Sync,
 {
-    pub fn new(ctx: &'a Context<T>, guild_id: GuildId) -> Self {
+    pub fn new(ctx: &'a Context<T, S>, guild_id: GuildId) -> Self {
         Self { ctx, guild_id }
     }
 
@@ -299,4 +330,17 @@ where
     }
 
     // pub fn members_iter(&self) -> impl Stream<Item = Result<Member, Error>> {}
+}
+
+impl<T, S> Debug for Context<T, S>
+where
+    T: Debug + Send + Sync,
+    S: Debug + Send + Sync,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Context")
+            .field("event", &self.event)
+            .field("state", &self.state)
+            .finish()
+    }
 }
