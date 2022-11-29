@@ -23,8 +23,10 @@ mod snowflake {
     /// A unique identifier.
     #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     #[repr(transparent)]
+    #[deprecated = "Unnecessary without `SnowflakeGenerator`, use `u64` instead"]
     pub struct Snowflake(pub u64);
 
+    #[allow(deprecated)]
     impl Snowflake {
         const fn from_parts(timestamp: u64, instance: u64, sequence: u64) -> Self {
             let timestamp = (timestamp << 22) & BITMASK_TIMESTAMP;
@@ -34,39 +36,46 @@ mod snowflake {
         }
 
         /// Returns the timestamp component of the `Snowflake`.
+        #[deprecated = "Unnecessary without `SnowflakeGenerator`, use `u64` instead"]
         pub const fn timestamp(&self) -> u64 {
             (self.0 & BITMASK_TIMESTAMP) >> 22
         }
 
         /// Returns the instance component of the `Snowflake`.
+        #[deprecated = "Unnecessary without `SnowflakeGenerator`, use `u64` instead"]
         pub const fn instance(&self) -> u64 {
             (self.0 & BITMASK_INSTANCE) >> 12
         }
 
         /// Returns the sequence component of the `Snowflake`.
+        #[deprecated = "Unnecessary without `SnowflakeGenerator`, use `u64` instead"]
         pub const fn sequence(&self) -> u64 {
             self.0 & BITMASK_SEQUENCE
         }
     }
 
+    #[allow(deprecated)]
     impl Display for Snowflake {
         fn fmt(&self, f: &mut Formatter) -> fmt::Result {
             self.0.fmt(f)
         }
     }
 
+    #[deprecated = "Use `snowflaked::Generator` instead"]
     #[derive(Copy, Clone, Debug, Default)]
     pub struct SnowflakeGenerator {
         instance: u16,
         sequence: u16,
     }
 
+    #[allow(deprecated)]
     impl SnowflakeGenerator {
         /// Creates a new `SnowflakeGenerator` which yields
         /// snowflakes with the given `instance_id`.
         ///
         /// Note: If the `instance_id` value exceeds the maximum of
         /// 1023 (2^10 - 1), `None` is returned.
+        #[deprecated = "Use `snowflaked::Generator` instead"]
         pub const fn new(instance: u16) -> Option<Self> {
             if instance > INSTANCE_MAX as u16 {
                 None
@@ -80,6 +89,7 @@ mod snowflake {
         ///
         /// Note: The caller must guarantee that `instance_id` does
         /// not exceed the maximum value of 1023 (2^10 -1).
+        #[deprecated = "Use `snowflaked::Generator` instead"]
         pub const fn new_unchecked(instance: u16) -> Self {
             Self {
                 instance,
@@ -88,6 +98,7 @@ mod snowflake {
         }
 
         /// Yield a newly generated [`Snowflake`].
+        #[deprecated = "Use `snowflaked::Generator` instead"]
         pub fn yield_id(&mut self) -> Snowflake {
             let timestamp = Utc::now().timestamp_millis();
 
@@ -104,6 +115,7 @@ mod snowflake {
         }
     }
 
+    #[allow(deprecated)]
     impl<T> Serialize<T> for Snowflake
     where
         T: Store,
@@ -124,6 +136,7 @@ mod snowflake {
         }
     }
 
+    #[allow(deprecated)]
     impl<T> Deserialize<T> for Snowflake
     where
         T: Store,
