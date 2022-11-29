@@ -6,6 +6,7 @@ use crate::model::channel::Message;
 use crate::model::guild::Member;
 use crate::model::id::{ChannelId, GuildId, MessageId, UserId};
 
+use futures::{Stream, StreamExt};
 use serenity::model::channel::ReactionType;
 
 use async_trait::async_trait;
@@ -278,6 +279,49 @@ where
 
         Ok(member.into())
     }
+
+    /// Kicks a member from a guild with an optional reason.
+    pub async fn kick(
+        &self,
+        guild_id: GuildId,
+        user_id: UserId,
+        reason: Option<&str>,
+    ) -> Result<(), Error> {
+        match reason {
+            Some(reason) => {
+                self.raw_ctx
+                    .http
+                    .kick_member_with_reason(guild_id.0, user_id.0, reason)
+                    .await?;
+            }
+            None => {
+                self.raw_ctx.http.kick_member(guild_id.0, user_id.0).await?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Bans a [`User`] from a [`Guild`] with an optional reason.
+    pub async fn ban(
+        &self,
+        guild_id: GuildId,
+        user_id: UserId,
+        dmd: u8,
+        reason: Option<&str>,
+    ) -> Result<(), Error> {
+        self.raw_ctx
+            .http
+            .ban_user(guild_id.0, user_id.0, dmd, reason.unwrap_or_default())
+            .await?;
+        Ok(())
+    }
+
+    /// Unbans a [`User`] from a [`Guild`].
+    pub async fn unban(&self, guild_id: GuildId, user_id: UserId) -> Result<(), Error> {
+        self.raw_ctx.http.remove_ban(guild_id.0, user_id.0).await?;
+        Ok(())
+    }
 }
 
 impl<T, S> Context<T, S>
@@ -309,6 +353,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct GuildContext<'a, T, S>
 where
     T: Send + Sync,
@@ -348,27 +393,15 @@ where
     }
 
     pub async fn kick(&self, user_id: UserId) -> Result<(), Error> {
-        serenity::model::id::GuildId(self.guild_id.0)
-            .kick(&self.ctx.raw_ctx, user_id)
-            .await?;
-
-        Ok(())
+        self.ctx.kick(self.guild_id, user_id, None).await
     }
 
     pub async fn ban(&self, user_id: UserId, dmd: u8) -> Result<(), Error> {
-        serenity::model::id::GuildId(self.guild_id.0)
-            .ban(&self.ctx.raw_ctx, user_id, dmd)
-            .await?;
-
-        Ok(())
+        self.ctx.ban(self.guild_id, user_id, dmd, None).await
     }
 
     pub async fn unban(&self, user_id: UserId) -> Result<(), Error> {
-        serenity::model::id::GuildId(self.guild_id.0)
-            .unban(&self.ctx.raw_ctx, user_id)
-            .await?;
-
-        Ok(())
+        self.ctx.unban(self.guild_id, user_id).await
     }
 
     pub async fn move_member(
@@ -383,7 +416,14 @@ where
         Ok(member.into())
     }
 
-    // pub fn members_iter(&self) -> impl Stream<Item = Result<Member, Error>> {}
+    pub fn members_iter(&'a self) -> impl Stream<Item = Result<Member, Error>> + 'a {
+        serenity::model::id::GuildId(self.guild_id.0)
+            .members_iter(&self.ctx.raw_ctx)
+            .map(|res| match res {
+                Ok(m) => Ok(m.into()),
+                Err(err) => Err(Error::Raw(err)),
+            })
+    }
 }
 
 impl<T, S> Debug for Context<T, S>
