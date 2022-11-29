@@ -1,6 +1,7 @@
 use super::{gw2api, utils, GuildLink, GuildMember};
 use super::{PERMISSION_MANAGE, PERMISSION_MANAGE_MEMBERS};
 
+use ::gw2api::v2::guild::Guild;
 use robbot::arguments::{ArgumentsExt, UserMention};
 use robbot::builder::CreateMessage;
 use robbot::prelude::*;
@@ -12,6 +13,97 @@ use tokio::join;
 
 use ::gw2api::v2::account::Account;
 use ::gw2api::Client;
+
+#[command(
+    name = "list",
+    description = "List all configured links for this server."
+)]
+async fn setup_list(ctx: MessageContext) -> Result {
+    // Fetch all `GuildLink`s for this guild.
+    let links = get!(ctx.state.store(), GuildLink => {
+        guild_id == ctx.event.guild_id.unwrap(),
+    })
+    .await?;
+
+    let mut content = String::new();
+    for link in links {
+        let client: Client = Client::builder().access_token(&link.api_token).into();
+        // TODO: This can be done in parallel with a join.
+        let guild = Guild::get(&client, &link.gw_guild_id).await?;
+
+        let api_token = link.api_token.get(0..12).unwrap_or("?");
+
+        // String::write_fmt cannot fail.
+        let _ = writeln!(
+            content,
+            "[{}]: **{}** => `{}...`",
+            link.id, guild.name, api_token
+        );
+    }
+
+    ctx.respond(CreateMessage::new(|m| {
+        m.embed(|e| {
+            e.title("__Linked Guilds__");
+            e.description(content);
+        });
+    }))
+    .await?;
+    Ok(())
+}
+
+#[command(
+    name = "create",
+    description = "Register a new Guild for synchronisation.",
+    usage = "<API_TOKEN> <GUILD_ID | GUILD_NAME>"
+)]
+async fn setup_create(mut ctx: MessageContext) -> Result {
+    let token: String = ctx.args.pop_parse()?;
+    let guild: String = ctx.args.join_rest()?;
+
+    if guild.is_empty() {
+        return Err(Error::InvalidCommandUsage);
+    }
+
+    let client: Client = Client::builder().access_token(&token).into();
+
+    let account = Account::get(&client).await?;
+
+    let guilds = match account.guild_leader {
+        Some(guilds) => guilds,
+        None => {
+            ctx.respond(":x: Token missing the `guilds` scope.").await?;
+            return Ok(());
+        }
+    };
+
+    let guild_id = if !guilds.contains(&guild) {
+        let mut guilds = Guild::search(&client, &guild).await?;
+        if guilds.len() == 0 {
+            let _ = ctx
+                .respond(format!(":x: Cannot find guild with name `{}`.", guild))
+                .await?;
+            return Ok(());
+        }
+
+        guilds.remove(0)
+    } else {
+        guild
+    };
+
+    let guild = Guild::get(&client, &guild_id).await?;
+
+    // Insert the new link.
+    let link = GuildLink::new(ctx.event.guild_id.unwrap(), guild.id, token);
+    ctx.state.store().insert(link).await?;
+
+    let _ = ctx
+        .respond(format!(
+            ":white_check_mark: Successfully created new link using `{}`.",
+            guild.name,
+        ))
+        .await?;
+    Ok(())
+}
 
 #[command(
     name = "verify",
@@ -275,7 +367,25 @@ async fn sync(ctx: MessageContext) -> Result {
 }
 
 #[command(description = "List all guild members.", permissions = [PERMISSION_MANAGE_MEMBERS])]
-async fn list(ctx: MessageContext) -> Result {
+async fn list(mut ctx: MessageContext) -> Result {
+    let links = get!(ctx.state.store(), GuildLink => {
+        guild_id == ctx.event.guild_id.unwrap(),
+    })
+    .await?;
+
+    let link = match links.len() {
+        0 => {
+            ctx.respond("No guilds configured for this server").await?;
+            return Ok(());
+        }
+        1 => {}
+        _ => {
+            let guild: String = ctx.args.join_rest()?;
+
+            match links.iter().find(|link| {}) {}
+        }
+    };
+
     let guild_link = get_guild_link(&ctx).await?;
 
     let members = guild_link.members(&ctx).await?;

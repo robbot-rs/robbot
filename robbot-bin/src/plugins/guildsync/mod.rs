@@ -8,16 +8,15 @@ use robbot::arguments::{ArgumentsExt, RoleMention};
 use robbot::builder::CreateMessage;
 use robbot::command;
 use robbot::model::id::{GuildId, RoleId, UserId};
-use robbot::store::id::{Snowflake, SnowflakeGenerator};
 use robbot::store::{create, delete, get};
 use robbot::task::TaskSchedule;
 use robbot::{Error, Result, StoreData};
 use robbot_core::command::Command;
 use robbot_core::context::{Context, MessageContext};
 use robbot_core::state::State;
+use snowflaked::sync::Generator;
 
 use std::fmt::Write;
-use std::sync::Mutex;
 
 pub const PERMISSION_MANAGE: &str = "guildsync.manage";
 pub const PERMISSION_MANAGE_MEMBERS: &str = "guildsync.manage_members";
@@ -27,22 +26,22 @@ pub async fn init(state: &State) -> Result {
     create!(state.store(), GuildMember).await?;
     create!(state.store(), GuildRank).await?;
 
-    unsafe {
-        let guildlink = Box::new(Mutex::new(SnowflakeGenerator::new_unchecked(0)));
-        GUILD_LINK_ID_GENERATOR = Box::leak(guildlink) as *const _;
-
-        let guildmember = Box::new(Mutex::new(SnowflakeGenerator::new_unchecked(0)));
-        GUILD_MEMBER_ID_GENERATOR = Box::leak(guildmember) as *const _;
-
-        let guildrank = Box::new(Mutex::new(SnowflakeGenerator::new_unchecked(0)));
-        GUILD_RANK_ID_GENERATOR = Box::leak(guildrank) as *const _;
-    }
-
     state
         .commands()
         .load_command(commands::verify_api(), None)?;
 
     state.commands().load_command(guildsync(), None)?;
+
+    state.commands().load_command(setup(), Some("guildsync"))?;
+
+    state
+        .commands()
+        .load_command(commands::setup_list(), Some("guildsync setup"))?;
+
+    state
+        .commands()
+        .load_command(commands::setup_create(), Some("guildsync setup"))?;
+
     state
         .commands()
         .load_command(commands::verify(), Some("guildsync"))?;
@@ -74,13 +73,13 @@ pub async fn init(state: &State) -> Result {
 
 // Statics for id generators. It's safe to assume valid pointers
 // after the init is called.
-static mut GUILD_LINK_ID_GENERATOR: *const Mutex<SnowflakeGenerator> = 0 as *const _;
-static mut GUILD_MEMBER_ID_GENERATOR: *const Mutex<SnowflakeGenerator> = 0 as *const _;
-static mut GUILD_RANK_ID_GENERATOR: *const Mutex<SnowflakeGenerator> = 0 as *const _;
+static GUILD_LINK_ID_GENERATOR: Generator = Generator::new(0);
+static GUILD_MEMBER_ID_GENERATOR: Generator = Generator::new(0);
+static GUILD_RANK_ID_GENERATOR: Generator = Generator::new(0);
 
 #[derive(Clone, Debug, StoreData)]
 pub(crate) struct GuildLink {
-    pub id: Snowflake,
+    pub id: u64,
     pub guild_id: GuildId,
     pub gw_guild_id: String,
     pub api_token: String,
@@ -89,7 +88,7 @@ pub(crate) struct GuildLink {
 impl Default for GuildLink {
     fn default() -> Self {
         Self {
-            id: Snowflake(0),
+            id: 0,
             guild_id: GuildId::default(),
             gw_guild_id: String::new(),
             api_token: String::new(),
@@ -99,13 +98,7 @@ impl Default for GuildLink {
 
 impl GuildLink {
     pub fn new(guild_id: GuildId, gw_guild_id: String, api_token: String) -> Self {
-        let id = {
-            let gen = unsafe { &*GUILD_LINK_ID_GENERATOR };
-
-            let mut gen = gen.lock().unwrap();
-
-            gen.yield_id()
-        };
+        let id = GUILD_LINK_ID_GENERATOR.generate();
 
         Self {
             id,
@@ -140,19 +133,26 @@ impl GuildLink {
     }
 }
 
+/// A member in a guild that has been linked.
+///
+/// A `GuildMember` always has a [`GuildLink`] association.
 #[derive(Clone, Debug, StoreData)]
 pub(crate) struct GuildMember {
-    pub id: Snowflake,
-    pub link_id: Snowflake,
+    /// A globally identifier, unique across all members of all links.
+    pub id: u64,
+    /// The id of the [`GuildLink`] this `GuildMember` belongs to.
+    pub link_id: u64,
+    /// The Guild Wars 2 account name of the user.
     pub account_name: String,
+    /// The id of the linked Discord user.
     pub user_id: UserId,
 }
 
 impl Default for GuildMember {
     fn default() -> Self {
         Self {
-            id: Snowflake(0),
-            link_id: Snowflake(0),
+            id: 0,
+            link_id: 0,
             account_name: String::default(),
             user_id: UserId::default(),
         }
@@ -160,14 +160,8 @@ impl Default for GuildMember {
 }
 
 impl GuildMember {
-    pub fn new(link_id: Snowflake, account_name: String, user_id: UserId) -> Self {
-        let id = {
-            let gen = unsafe { &*GUILD_MEMBER_ID_GENERATOR };
-
-            let mut gen = gen.lock().unwrap();
-
-            gen.yield_id()
-        };
+    pub fn new(link_id: u64, account_name: String, user_id: UserId) -> Self {
+        let id = GUILD_MEMBER_ID_GENERATOR.generate();
 
         Self {
             id,
@@ -180,17 +174,21 @@ impl GuildMember {
 
 #[derive(Clone, Debug, StoreData)]
 pub(crate) struct GuildRank {
-    pub id: Snowflake,
-    pub link_id: Snowflake,
+    /// A globally identifier, unique across all ranks of all links.
+    pub id: u64,
+    /// The id of [`GuildLink`] this `GuildMember` belongs to.
+    pub link_id: u64,
+    /// The name of the Guild Wars 2 guild rank.
     pub rank_name: String,
+    /// The id of the linked Discord role.
     pub role_id: RoleId,
 }
 
 impl Default for GuildRank {
     fn default() -> Self {
         Self {
-            id: Snowflake(0),
-            link_id: Snowflake(0),
+            id: 0,
+            link_id: 0,
             rank_name: String::new(),
             role_id: RoleId::default(),
         }
@@ -198,14 +196,8 @@ impl Default for GuildRank {
 }
 
 impl GuildRank {
-    pub fn new(link_id: Snowflake, rank_name: String, role_id: RoleId) -> Self {
-        let id = {
-            let gen = unsafe { &*GUILD_RANK_ID_GENERATOR };
-
-            let mut gen = gen.lock().unwrap();
-
-            gen.yield_id()
-        };
+    pub fn new(link_id: u64, rank_name: String, role_id: RoleId) -> Self {
+        let id = GUILD_RANK_ID_GENERATOR.generate();
 
         Self {
             id,
@@ -231,6 +223,12 @@ pub fn guildsync() -> Command {
 pub fn ranks() -> Command {
     let mut cmd = Command::new("ranks");
     cmd.set_description("Assign role to rank mappings.");
+    cmd
+}
+
+pub fn setup() -> Command {
+    let mut cmd = Command::new("setup");
+    cmd.set_description("Guildsync configuration");
     cmd
 }
 
