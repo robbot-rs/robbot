@@ -131,14 +131,12 @@ where
     /// # Examples
     ///
     /// ```no_run
-    /// # use std::mem::MaybeUninit;
     /// # use robbot::context::Context;
     /// #
     /// use robbot::builder::CreateMessage;
     /// use robbot::model::id::ChannelId;
     ///
-    /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let ctx: Context<(), ()> = unsafe { MaybeUninit::uninit().assume_init() };
+    /// # async fn run(ctx: &Context<(), ()>) -> Result<(), Box<dyn std::error::Error>> {
     /// #
     /// ctx.send_message(ChannelId(1234), CreateMessage::new(|m| {
     ///     m.content("Hello World!");
@@ -149,15 +147,14 @@ where
     /// ```
     ///
     /// ```no_run
-    /// # use std::mem::MaybeUninit;
     /// # use robbot::context::Context;
     /// #
     /// use robbot::model::id::ChannelId;
     ///
-    /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let ctx: Context<(), ()> = unsafe { MaybeUninit::uninit().assume_init() };
+    /// # async fn run(ctx: &Context<(), ()>) -> Result<(), Box<dyn std::error::Error>> {
     /// #
     /// ctx.send_message(ChannelId(1234), "Hello World!").await?;
+    /// #
     /// # Ok(())
     /// # }
     /// ```
