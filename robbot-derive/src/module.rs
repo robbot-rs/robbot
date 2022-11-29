@@ -264,6 +264,7 @@ impl ToTokens for StoreDataTypes {
 
 #[derive(Clone, Debug, Default)]
 struct Tasks {
+    /// Task function
     tasks: Vec<ExprPath>,
 }
 
@@ -285,21 +286,24 @@ impl Parse for Tasks {
 
 impl ToTokens for Tasks {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let tasks = self.tasks.clone();
+        let tasks: Vec<TokenStream> = self
+            .tasks
+            .clone()
+            .iter()
+            .map(|task| {
+                quote! {
+                    state.tasks().add_task(#task()).await;
+                }
+            })
+            .collect();
 
-        let token = match tasks.len() {
-            0 => quote! {{}},
-            _ => quote! {
-                let res = ::tokio::try_join! {
-                    #(
-                        state.tasks().add_task(#tasks),
-                    )*
-                };
-                res?;
-            },
-        };
-
-        tokens.append_all(&[token]);
+        tokens.extend(quote! {
+            {
+                #(
+                    #tasks
+                )*
+            }
+        })
     }
 }
 
