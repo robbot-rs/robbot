@@ -12,7 +12,8 @@ license = "GPL-3.0"
 robbot-derive = { version = "0.7.0", path = "../robbot-derive" }
 tokio = "1.17.0"
 async-trait = "0.1.52"
-serenity = { version = "0.10.10", default-features = false, features = ["builder", "model", "rustls_backend"] }
+serenity = { version = "0.10.10", default-features = false, features = ["builder", "model", "rustls_backend", "cache", "client", "gateway", "http"] }
 chrono = "0.4.19"
 serde = { version = "1.0.136", features = ["derive"] }
 thiserror = "1.0.30"
+futures = "0.3.24"

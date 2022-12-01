@@ -1,3 +1,5 @@
+use crate::plugins::log::{LogEvent, LogLevel};
+
 use super::PERMISSION_MANAGE;
 
 use robbot::arguments::ArgumentsExt;
@@ -54,6 +56,18 @@ async fn add(mut ctx: MessageContext) -> Result {
             insert!(ctx.state.store(), node).await?;
         }
     }
+
+    super::super::log::log(LogEvent {
+        guild_id,
+        level: LogLevel::Info,
+        target: Some("permissions".to_owned()),
+        content: format!(
+            "{} added permissions `{}` to {}",
+            ctx.event.author.mention(),
+            ctx.args.as_ref().join("`,`"),
+            id
+        ),
+    });
 
     let _ = ctx
         .respond(format!(
@@ -160,6 +174,18 @@ async fn remove(mut ctx: MessageContext) -> Result {
             .await?;
         }
     }
+
+    super::super::log::log(LogEvent {
+        guild_id,
+        level: LogLevel::Info,
+        target: Some("permissions".to_owned()),
+        content: format!(
+            "{} removed permissions `{}` to {}",
+            ctx.event.author.mention(),
+            ctx.args.as_ref().join("`,`"),
+            id
+        ),
+    });
 
     let _ = ctx
         .respond(format!(

@@ -1,3 +1,4 @@
+#[deprecated = "Use the `robbot::task` attribute macro instead."]
 #[macro_export]
 macro_rules! task {
     ($name:ident, $schedule:expr, $executor:expr $(,)?) => {
@@ -14,6 +15,7 @@ macro_rules! task {
     };
 }
 
+#[deprecated = "Use the `robbot::task` attribute macro instead."]
 #[macro_export]
 macro_rules! task_schedule {
     // Interval

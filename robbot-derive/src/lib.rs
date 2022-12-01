@@ -1,9 +1,12 @@
 mod decode;
 mod encode;
 mod hook;
+mod ident;
+mod kvmap;
 mod module;
 mod store;
 mod storedata;
+mod task;
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
@@ -91,6 +94,11 @@ impl Parse for Args {
 
         Ok(Self { args: map })
     }
+}
+
+#[proc_macro_attribute]
+pub fn task(attr: TokenStream, input: TokenStream) -> TokenStream {
+    task::task(attr, input)
 }
 
 #[proc_macro_attribute]

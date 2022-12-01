@@ -88,6 +88,7 @@ pub struct CreateEmbed {
     color: Option<Color>,
     description: Option<String>,
     title: Option<String>,
+    footer: Option<CreateEmbedFooter>,
 }
 
 impl CreateEmbed {
@@ -124,6 +125,14 @@ impl CreateEmbed {
         self
     }
 
+    pub fn footer<F>(&mut self, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut CreateEmbedFooter),
+    {
+        self.footer = Some(CreateEmbedFooter::new(f));
+        self
+    }
+
     pub fn fill_builder(self, builder: &mut serenity::builder::CreateEmbed) {
         if let Some(description) = self.description {
             builder.description(description);
@@ -135,6 +144,56 @@ impl CreateEmbed {
 
         if let Some(color) = self.color {
             builder.color(color.0);
+        }
+
+        if let Some(footer) = self.footer {
+            builder.footer(|b| {
+                footer.fill_builder(b);
+                b
+            });
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Encode, Decode)]
+pub struct CreateEmbedFooter {
+    icon_url: Option<String>,
+    text: Option<String>,
+}
+
+impl CreateEmbedFooter {
+    pub fn new<F>(f: F) -> Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        let mut builder = Self::default();
+        f(&mut builder);
+        builder
+    }
+
+    pub fn icon_url<T>(&mut self, icon_url: T) -> &mut Self
+    where
+        T: ToString,
+    {
+        self.icon_url = Some(icon_url.to_string());
+        self
+    }
+
+    pub fn text<T>(&mut self, text: T) -> &mut Self
+    where
+        T: ToString,
+    {
+        self.text = Some(text.to_string());
+        self
+    }
+
+    pub fn fill_builder(self, builder: &mut serenity::builder::CreateEmbedFooter) {
+        if let Some(icon_url) = self.icon_url {
+            builder.icon_url(icon_url);
+        }
+
+        if let Some(text) = self.text {
+            builder.text(text);
         }
     }
 }

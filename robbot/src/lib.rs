@@ -19,7 +19,7 @@ pub use crate::context::Context;
 pub use crate::store::StoreData;
 pub use crate::task::{Task, TaskSchedule};
 
-pub use robbot_derive::{command, hook, module, Decode, Encode};
+pub use robbot_derive::{command, hook, module, task, Decode, Encode};
 
 pub mod prelude {
     pub use crate::arguments::ArgumentsExt;
@@ -29,5 +29,5 @@ pub mod prelude {
     pub use crate::context::Context;
     pub use crate::store::StoreData;
 
-    pub use robbot_derive::{command, hook, module};
+    pub use robbot_derive::{command, hook, module, task};
 }
