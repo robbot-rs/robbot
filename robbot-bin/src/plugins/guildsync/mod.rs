@@ -5,11 +5,46 @@
 //!
 //! # Features
 //!
-//! - Add a general role for being a member of a guild
 //! - Link a guild rank to a role
 //! - Automatically synchronise guild ranks as they are changed ingame
 //! - Reguarly checks and removes inappropriate roles from *all* server members
 //! - Support for multiple guilds within a single server, even when sharing roles
+//!
+//! # Quirks
+//!
+//! There are currently a number of quirks present that should be noted. When verifying a user
+//! is verified all links available on the requested server. The user will however be linked to
+//! the linked guilds that they were a member of at the time of verification. If a user later
+//! enters another linked guild, they are not added automatically, they need to verify a second
+//! time. This also applies to adding another link later.
+//!
+//! Additionally the current implementation does not keep track of users' api tokens. If provided
+//! they are only used once to fetch the user's account name. This is rarely a problem, since
+//! account names change rarely, but if it happens the user will be removed. Checking all tokens
+//! would solve this problem, but result in an even more complex synchronisation process and
+//! massively increased traffic.
+//!
+//! This also brings an benefit however. If a user verifies themself with an api token, they can
+//! delete token after the verification process.
+//!
+//! # Implementation notes
+//!
+//! The current implementation synchronises every server atomically, synchronising an server
+//! partially (i.e. a single guild within a multi-guild server) is not possible.
+//!
+//! All linked users will have a reference record, that links their account name to a unique user.
+//! On every update cycle that list of records is compared against the list of members that are
+//! currently in the guild and record that point to an account name that is no longer in the guild
+//! are removed. This step is applied for every linked guild in the server.
+//!
+//! At this point we have an updated list of what users have what rank in the guild. The next step
+//! builds a set of predicates over every role that is being managed. These predicates describe
+//! every linked in the server and cannot be constructed correctly for a single guild. A predicate
+//! describes a set of requirements (i.e. have a specific rank in a specific guild), at least one
+//! of which must be true in order for a user to have the role.
+//!
+//! The final step can now iterate over all members in the server, validate every managed role
+//! using the predicates and add invalid/remove missing roles.
 //!
 mod commands;
 mod predicates;
