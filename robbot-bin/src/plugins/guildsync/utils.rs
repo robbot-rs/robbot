@@ -20,16 +20,23 @@ pub fn patch_member(
     preds: &Vec<RolePredicates>,
     member: Member,
     guilds: &ApiGuildMembers,
-) -> EditMember {
+) -> Option<EditMember> {
+    let mut changed = false;
     let mut roles = member.roles;
 
     for pred in preds {
-        pred.update_roles(&mut roles, guilds.filter(|m| m.user_id == member.user.id));
+        if pred.update_roles(&mut roles, guilds.filter(|m| m.user_id == member.user.id)) {
+            changed = true;
+        }
     }
 
-    EditMember::new(|m| {
-        m.roles(roles);
-    })
+    if changed {
+        Some(EditMember::new(|m| {
+            m.roles(roles);
+        }))
+    } else {
+        None
+    }
 }
 
 /// Update all links in a single server.
@@ -93,8 +100,9 @@ where
         log::trace!("Checking user {}", member.user.id);
 
         let user_id = member.user.id;
-        let edit = patch_member(&predicates, member, &api_members);
-        ctx.as_ref().edit_member(guild_id, user_id, edit).await?;
+        if let Some(edit) = patch_member(&predicates, member, &api_members) {
+            ctx.as_ref().edit_member(guild_id, user_id, edit).await?;
+        }
     }
 
     PREDIATE_CACHE.lock().insert(guild_id, predicates);

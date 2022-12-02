@@ -367,10 +367,12 @@ async fn verify_user(
         return Err(VerifyError::UserNotInGuild);
     }
 
-    let edit = patch_member(&predicates, member, &api_members);
-    ctx.edit_member(guild_id, user_id, edit)
-        .await
-        .map_err(|err| Error::from(err))?;
+    if let Some(edit) = patch_member(&predicates, member, &api_members) {
+        ctx.edit_member(guild_id, user_id, edit)
+            .await
+            .map_err(|err| Error::from(err))?;
+    }
+
     Ok(())
 }
 

@@ -96,11 +96,12 @@ impl RolePredicates {
         false
     }
 
-    /// Modify a `Vec<RoleId>` depending on whether the `RolePredicates` are satisfied.
+    /// Modify a `Vec<RoleId>` depending on whether the `RolePredicates` are satisfied. Returns
+    /// whether the roles have changed.
     ///
     /// Note that `update_roles` only operates on a single role. It will only add or remove a
     /// single [`RoleId`].
-    pub fn update_roles<'b, I>(&self, roles: &mut Vec<RoleId>, guilds: I)
+    pub fn update_roles<'b, I>(&self, roles: &mut Vec<RoleId>, guilds: I) -> bool
     where
         I: Iterator<Item = &'b ApiGuildMember<'b>>,
     {
@@ -117,13 +118,16 @@ impl RolePredicates {
         // Member doesn't have role, but should.
         if !has_role && should_have_role {
             roles.push(self.role_id);
-            return;
+            return true;
         }
 
         // Member has role, but shouldn't.
         if has_role && !should_have_role {
             roles.retain(|role| *role != self.role_id);
+            return true;
         }
+
+        false
     }
 }
 
