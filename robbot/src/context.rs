@@ -322,6 +322,13 @@ where
         self.raw_ctx.http.remove_ban(guild_id.0, user_id.0).await?;
         Ok(())
     }
+
+    pub fn guild(&self, guild_id: GuildId) -> GuildContext<'_, T, S> {
+        GuildContext {
+            ctx: self,
+            guild_id,
+        }
+    }
 }
 
 impl<T, S> Context<T, S>
@@ -423,6 +430,16 @@ where
                 Ok(m) => Ok(m.into()),
                 Err(err) => Err(Error::Raw(err)),
             })
+    }
+}
+
+impl<'a, T, S> AsRef<Context<T, S>> for GuildContext<'a, T, S>
+where
+    T: Send + Sync,
+    S: Send + Sync,
+{
+    fn as_ref(&self) -> &Context<T, S> {
+        &self.ctx
     }
 }
 
