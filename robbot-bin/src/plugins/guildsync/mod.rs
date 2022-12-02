@@ -12,24 +12,19 @@
 //! - Support for multiple guilds within a single server, even when sharing roles
 //!
 mod commands;
-mod gw2api;
 mod predicates;
 mod task;
 mod utils;
 
 use ::gw2api::Client;
-use robbot::arguments::{ArgumentsExt, RoleMention};
-use robbot::builder::CreateMessage;
-use robbot::command;
+use robbot::arguments::ArgumentsExt;
 use robbot::model::id::{GuildId, RoleId, UserId};
-use robbot::store::{create, delete, get};
+use robbot::store::{create, get};
 use robbot::{Error, Result, StoreData};
 use robbot_core::command::Command;
 use robbot_core::context::{Context, MessageContext};
 use robbot_core::state::State;
 use snowflaked::sync::Generator;
-
-use std::fmt::Write;
 
 pub const PERMISSION_MANAGE: &str = "guildsync.manage";
 pub const PERMISSION_MANAGE_MEMBERS: &str = "guildsync.manage_members";
@@ -45,15 +40,31 @@ pub async fn init(state: &State) -> Result {
 
     state.commands().load_command(guildsync(), None)?;
 
-    state.commands().load_command(setup(), Some("guildsync"))?;
+    state.commands().load_command(link(), Some("guildsync"))?;
+    state.commands().load_command(ranks(), Some("guildsync"))?;
 
     state
         .commands()
-        .load_command(commands::setup_list(), Some("guildsync setup"))?;
+        .load_command(commands::config::create(), Some("guildsync link"))?;
+    state
+        .commands()
+        .load_command(commands::config::delete(), Some("guildsync link"))?;
+    state
+        .commands()
+        .load_command(commands::config::list(), Some("guildsync link"))?;
+    state
+        .commands()
+        .load_command(commands::config::details(), Some("guildsync link"))?;
 
     state
         .commands()
-        .load_command(commands::setup_create(), Some("guildsync setup"))?;
+        .load_command(commands::ranks::list(), Some("guildsync ranks"))?;
+    state
+        .commands()
+        .load_command(commands::ranks::set(), Some("guildsync ranks"))?;
+    state
+        .commands()
+        .load_command(commands::ranks::unset(), Some("guildsync ranks"))?;
 
     state
         .commands()
@@ -70,14 +81,6 @@ pub async fn init(state: &State) -> Result {
     state
         .commands()
         .load_command(commands::sync(), Some("guildsync"))?;
-
-    state.commands().load_command(ranks(), Some("guildsync"))?;
-    state
-        .commands()
-        .load_command(_ranks_list(), Some("guildsync ranks"))?;
-    state
-        .commands()
-        .load_command(ranks_set(), Some("guildsync ranks"))?;
 
     state.tasks().add_task(task::sync()).await;
 
@@ -144,6 +147,53 @@ impl GuildLink {
             let guild = ::gw2api::v2::guild::Guild::get(&client, &link.gw_guild_id).await?;
 
             if guild.name.starts_with(&argument) {
+                return Ok(Some(link));
+            }
+        }
+
+        Ok(None)
+    }
+
+    pub async fn extract_exact(
+        ctx: &mut MessageContext,
+    ) -> std::result::Result<Option<Self>, robbot::Error> {
+        let guild_id = ctx.event.guild_id.unwrap();
+
+        let links = get!(ctx.state.store(), GuildLink => {
+            guild_id == guild_id,
+        })
+        .await?;
+
+        if links.len() == 1 {
+            return Ok(Some(links[0].clone()));
+        }
+
+        let argument = ctx.args.pop().ok_or(robbot::Error::InvalidCommandUsage)?;
+
+        // 1. Search for exact `id` field match.
+        // Only search for the `id` field if `argument` parses.
+        if let Ok(id) = argument.parse::<u64>() {
+            for link in &links {
+                if link.id == id {
+                    return Ok(Some(link.clone()));
+                }
+            }
+        }
+
+        // 2. Search for exact inagme guild id match.
+        for link in &links {
+            if link.gw_guild_id == argument {
+                return Ok(Some(link.clone()));
+            }
+        }
+
+        for link in links {
+            // TODO: Some caching would be beneficial here.
+            let client: Client = Client::builder().access_token(&link.api_token).into();
+
+            let guild = ::gw2api::v2::guild::Guild::get(&client, &link.gw_guild_id).await?;
+
+            if guild.name == argument {
                 return Ok(Some(link));
             }
         }
@@ -283,89 +333,12 @@ pub fn guildsync() -> Command {
 
 pub fn ranks() -> Command {
     let mut cmd = Command::new("ranks");
-    cmd.set_description("Assign role to rank mappings.");
+    cmd.set_description("Manage guild rank to role mappings.");
     cmd
 }
 
-pub fn setup() -> Command {
-    let mut cmd = Command::new("setup");
-    cmd.set_description("Guildsync configuration");
+pub fn link() -> Command {
+    let mut cmd = Command::new("link");
+    cmd.set_description("Manage linked guilds for this server.");
     cmd
-}
-
-#[command(name = "set", description = "Map a rank to a role.", permissions = [PERMISSION_MANAGE])]
-async fn ranks_set(mut ctx: MessageContext) -> Result {
-    if ctx.args.len() < 2 {
-        return Err(Error::InvalidCommandUsage);
-    }
-
-    let rank_name = ctx.args.pop().unwrap();
-    let role: RoleMention = ctx.args.pop_parse()?;
-
-    let role_id = role.id;
-
-    let guild_link = commands::get_guild_link(&ctx).await?;
-
-    let ranks = get!(ctx.state.store(), GuildRank => {
-        link_id == guild_link.id,
-    })
-    .await?;
-
-    for rank in ranks {
-        if rank.rank_name == rank_name {
-            delete!(ctx.state.store(), GuildRank => {
-                id == rank.id,
-            })
-            .await?;
-
-            break;
-        }
-    }
-
-    let rank = GuildRank::new(guild_link.id, rank_name, role_id);
-
-    ctx.state.store().insert(rank.clone()).await?;
-
-    let _ = ctx
-        .respond(format!(
-            ":white_check_mark: Successfully assigned role <@&{}> to `{}`",
-            rank.role_id.0, rank.rank_name
-        ))
-        .await?;
-
-    // let _ = ctx
-    //     .event
-    //     .reply(
-    //         &ctx.raw_ctx,
-    //         format!(":x: Cannot find rank `{}`.", rank_name),
-    //     )
-    //     .await?;
-    Ok(())
-}
-
-#[command(name = "list", description = "Display the current rank to role assignments.", permissions = [PERMISSION_MANAGE])]
-async fn _ranks_list(ctx: MessageContext) -> Result {
-    let guild_link = commands::get_guild_link(&ctx).await?;
-
-    let ranks = get!(ctx.state.store(), GuildRank => {
-        link_id == guild_link.id,
-    })
-    .await?;
-
-    let _ = ctx
-        .respond(CreateMessage::new(|m| {
-            m.embed(|e| {
-                e.title("__Rank Mappings__");
-                e.description({
-                    let mut string = String::new();
-                    for rank in ranks {
-                        writeln!(string, "<@&{}> => `{}`", rank.role_id, rank.rank_name).unwrap();
-                    }
-                    string
-                });
-            });
-        }))
-        .await;
-
-    Ok(())
 }

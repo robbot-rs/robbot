@@ -7,7 +7,7 @@ use robbot_core::context::Context;
 
 use super::GuildLink;
 
-#[task(interval = "1h")]
+#[task(interval = "1h", on_load = true)]
 pub(super) async fn sync<T>(ctx: Context<T>) -> Result
 where
     T: Sync + Send,

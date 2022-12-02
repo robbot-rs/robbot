@@ -1,6 +1,9 @@
+pub mod config;
+pub mod ranks;
+
 use super::predicates::PREDIATE_CACHE;
 use super::utils::{patch_member, ApiGuildMember, ApiGuildMembers};
-use super::{gw2api, utils, GuildLink, GuildMember};
+use super::{utils, GuildLink, GuildMember};
 use super::{PERMISSION_MANAGE, PERMISSION_MANAGE_MEMBERS};
 
 use ::gw2api::v2::guild::Guild;
@@ -13,7 +16,6 @@ use robbot_core::context::MessageContext;
 use serenity::model::id::UserId;
 use std::fmt::Write;
 use std::time::Instant;
-use tokio::join;
 
 use ::gw2api::v2::account::Account;
 use ::gw2api::Client;
@@ -257,13 +259,100 @@ async fn verify(mut ctx: MessageContext) -> Result {
     Ok(())
 }
 
-#[command(description = "Unverify and unlink a user or guild member.", permissions = [PERMISSION_MANAGE_MEMBERS])]
+#[command(description = "Unverify and unlink a user or guild member.", usage = "<@User | AccountName>", permissions = [PERMISSION_MANAGE_MEMBERS])]
 async fn unverify(mut ctx: MessageContext) -> Result {
+    let argument: String = ctx.args.join_rest()?;
+
+    let guild_id = ctx.event.guild_id.unwrap();
+
+    let links = get!(ctx.state.store(), GuildLink => {
+        guild_id == guild_id
+    })
+    .await?;
+
+    // Attempt a user id first.
+    if let Ok(user) = argument.parse::<UserMention>() {
+        for link in links {
+            delete!(ctx.state.store(), GuildMember => {
+                link_id == link.id,
+                user_id == user.id,
+            })
+            .await?;
+        }
+    } else {
+        // Otherwise account name.
+        for link in links {
+            delete!(ctx.state.store(), GuildMember => {
+                link_id == link.id,
+                account_name == argument.clone(),
+            })
+            .await?;
+        }
+    }
+
+    ctx.respond(format!(
+        ":white_check_mark: Successfully unlinked {}.",
+        argument
+    ))
+    .await?;
     Ok(())
 }
 
 #[command(description = "Identify a guild member by user.", permissions = [PERMISSION_MANAGE_MEMBERS])]
 async fn whois(mut ctx: MessageContext) -> Result {
+    let argument: String = ctx.args.pop_parse()?;
+
+    let guild_id = ctx.event.guild_id.unwrap();
+
+    let links = get!(ctx.state.store(), GuildLink => {
+        guild_id == guild_id
+    })
+    .await?;
+
+    let mut matches = Vec::new();
+    if let Ok(user) = argument.parse::<UserMention>() {
+        for link in links {
+            matches.append(
+                &mut get!(ctx.state.store(), GuildMember => {
+                    link_id == link.id,
+                    user_id == user.id,
+                })
+                .await?,
+            );
+        }
+    } else {
+        for link in links {
+            matches.append(
+                &mut get!(ctx.state.store(), GuildMember => {
+                    link_id == link.id,
+                    account_name == argument.clone(),
+                })
+                .await?,
+            );
+        }
+    }
+
+    let mut description = String::new();
+    if matches.is_empty() {
+        description.push_str("No matches found.");
+    } else {
+        for m in matches {
+            let _ = writeln!(
+                description,
+                "{} => `{}`",
+                m.user_id.mention(),
+                m.account_name
+            );
+        }
+    }
+
+    ctx.respond(CreateMessage::new(|m| {
+        m.embed(|e| {
+            e.title("__Lookup Results__");
+            e.description(description);
+        });
+    }))
+    .await?;
     Ok(())
 }
 
@@ -331,35 +420,6 @@ async fn verify_user(
 ) -> std::result::Result<(), VerifyError> {
     let guild_id = member.guild_id;
     let user_id = member.user.id;
-    // let guild_id = ctx.event.guild_id.unwrap();
-
-    // let mut user = match ctx.member(guild_id, user_id.into()).await {
-    //     Ok(user) => user,
-    //     Err(_) => return Err(VerifyError::UserNotInGuild),
-    // };
-
-    // let guild_members =
-    //     gw2api::GuildMember::get(&guild_link.gw_guild_id, &guild_link.api_token).await?;
-
-    // for guild_member in guild_members {
-    //     if account_name == guild_member.name {
-    //         let members = get!(ctx.state.store(), GuildMember => {
-    //             link_id == guild_link.id,
-    //             user_id == user_id.into(),
-    //         })
-    //         .await?;
-
-    //         if !members.is_empty() {
-    //             return Err(VerifyError::AlreadyLinked);
-    //         }
-
-    //         ctx.state.store().insert(member.clone()).await?;
-
-    //         return Ok(());
-    //     }
-    // }
-
-    // Err(VerifyError::AccountNotInGuild)
 
     let predicates = match PREDIATE_CACHE.lock().get(member.guild_id) {
         Some(preds) => preds,
