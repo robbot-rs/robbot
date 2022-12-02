@@ -8,13 +8,19 @@ use super::{GuildLink, GuildRank};
 
 pub static PREDIATE_CACHE: Mutex<PredicateCache> = Mutex::new(PredicateCache::new());
 
+/// A lazy-initialized cache of [`RolePredicate`] lists for each server.
+///
+/// It should be avoided to rebuild the predicates commonly. Instead [`PREDICATE_CACHE`] can be
+/// used to reuse the predicates from the last full synchronisation run.
 pub struct PredicateCache(Option<HashMap<GuildId, Vec<RolePredicates>>>);
 
 impl PredicateCache {
+    /// Creates a new, empty `PredicateCache`.
     pub const fn new() -> Self {
         Self(None)
     }
 
+    /// Inserts a new list of [`RolePredicates`] for the given `guild_id` into the cache.
     pub fn insert(&mut self, guild_id: GuildId, predicates: Vec<RolePredicates>) {
         match &mut self.0 {
             Some(map) => {
@@ -28,6 +34,8 @@ impl PredicateCache {
         }
     }
 
+    /// Returns a list of [`RolePredicates`] for the requested `guild_id`. Returns `None` if the
+    /// guild was never synchronised.
     pub fn get(&self, guild_id: GuildId) -> Option<Vec<RolePredicates>> {
         match &self.0 {
             Some(map) => map.get(&guild_id).cloned(),
@@ -39,16 +47,18 @@ impl PredicateCache {
 /// A predicate that must be satisfied for a user to have a role.
 #[derive(Clone, Debug)]
 struct RolePredicate {
+    /// The id of the guild for which this [`RankPredicate`] must be satisfied.
     guild: String,
+    /// The required rank.
     rank: RankPredicate,
 }
 
 /// A predicate for a ingame guild rank.
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum RankPredicate {
-    /// A predicate that is given no matter what rank is active.
+    /// A predicate that is satisfied no matter what rank a member has.
     Any,
-    /// A predicate that is only given when a specific rank is active.
+    /// A predicate that is only satisfied when a member has a specific rank.
     Rank(String),
 }
 
@@ -86,6 +96,10 @@ impl RolePredicates {
         false
     }
 
+    /// Modify a `Vec<RoleId>` depending on whether the `RolePredicates` are satisfied.
+    ///
+    /// Note that `update_roles` only operates on a single role. It will only add or remove a
+    /// single [`RoleId`].
     pub fn update_roles<'b, I>(&self, roles: &mut Vec<RoleId>, guilds: I)
     where
         I: Iterator<Item = &'b ApiGuildMember<'b>>,
@@ -113,18 +127,21 @@ impl RolePredicates {
     }
 }
 
+/// A builder for a list of [`RolePredicates`].
 #[derive(Clone, Debug)]
 pub struct PredicatesBuilder {
     predicates: Vec<RolePredicates>,
 }
 
 impl PredicatesBuilder {
+    /// Creates a new, empty `PredicatesBuilder`.
     pub fn new() -> Self {
         Self {
             predicates: Vec::new(),
         }
     }
 
+    /// Inserts a new [`RolePredicate`], created from the given `link` and `rank`.
     pub(super) fn insert(&mut self, link: &GuildLink, rank: &GuildRank) -> &mut Self {
         for pred in &mut self.predicates {
             // If a role already has a predicate, we push it instead of creating a new one.
@@ -150,6 +167,7 @@ impl PredicatesBuilder {
         self
     }
 
+    /// Consumes this `PredicateBuilder`, returning the constructed `Vec<RolePredicates>`.
     pub fn build(self) -> Vec<RolePredicates> {
         self.predicates
     }
