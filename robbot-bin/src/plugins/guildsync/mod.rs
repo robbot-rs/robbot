@@ -1,15 +1,28 @@
 //! Sync Guild Wars 2 guild members to users.
+//!
+//! The `guildsync` plugin allows to create Guild Wars 2 rank to role mappings, and synchronises
+//! the mapped roles as member roles change and members leave the guild.
+//!
+//! # Features
+//!
+//! - Add a general role for being a member of a guild
+//! - Link a guild rank to a role
+//! - Automatically synchronise guild ranks as they are changed ingame
+//! - Reguarly checks and removes inappropriate roles from *all* server members
+//! - Support for multiple guilds within a single server, even when sharing roles
+//!
 mod commands;
 mod gw2api;
+mod predicates;
 mod task;
 mod utils;
 
+use ::gw2api::Client;
 use robbot::arguments::{ArgumentsExt, RoleMention};
 use robbot::builder::CreateMessage;
 use robbot::command;
 use robbot::model::id::{GuildId, RoleId, UserId};
 use robbot::store::{create, delete, get};
-use robbot::task::TaskSchedule;
 use robbot::{Error, Result, StoreData};
 use robbot_core::command::Command;
 use robbot_core::context::{Context, MessageContext};
@@ -66,13 +79,11 @@ pub async fn init(state: &State) -> Result {
         .commands()
         .load_command(ranks_set(), Some("guildsync ranks"))?;
 
-    state.tasks().add_task(tsync()).await;
+    state.tasks().add_task(task::sync()).await;
 
     Ok(())
 }
 
-// Statics for id generators. It's safe to assume valid pointers
-// after the init is called.
 static GUILD_LINK_ID_GENERATOR: Generator = Generator::new(0);
 static GUILD_MEMBER_ID_GENERATOR: Generator = Generator::new(0);
 static GUILD_RANK_ID_GENERATOR: Generator = Generator::new(0);
@@ -83,6 +94,62 @@ pub(crate) struct GuildLink {
     pub guild_id: GuildId,
     pub gw_guild_id: String,
     pub api_token: String,
+}
+
+impl GuildLink {
+    /// Extract a requested [`GuildLink`] from a message.
+    ///
+    /// This function searches for a matching [`GuildLink`] in the following order:
+    /// 1. If a server only has a single link, it is always returned.
+    /// 1. An exact match of the `id` field.
+    /// 2. An exact match of the ingame guild id.
+    /// 3. If the argument is the prefix of a guild name.
+    pub async fn extract(
+        ctx: &mut MessageContext,
+    ) -> std::result::Result<Option<Self>, robbot::Error> {
+        let guild_id = ctx.event.guild_id.unwrap();
+
+        let links = get!(ctx.state.store(), GuildLink => {
+            guild_id == guild_id,
+        })
+        .await?;
+
+        if links.len() == 1 {
+            return Ok(Some(links[0].clone()));
+        }
+
+        let argument = ctx.args.pop().ok_or(robbot::Error::InvalidCommandUsage)?;
+
+        // 1. Search for exact `id` field match.
+        // Only search for the `id` field if `argument` parses.
+        if let Ok(id) = argument.parse::<u64>() {
+            for link in &links {
+                if link.id == id {
+                    return Ok(Some(link.clone()));
+                }
+            }
+        }
+
+        // 2. Search for exact inagme guild id match.
+        for link in &links {
+            if link.gw_guild_id == argument {
+                return Ok(Some(link.clone()));
+            }
+        }
+
+        for link in links {
+            // TODO: Some caching would be beneficial here.
+            let client: Client = Client::builder().access_token(&link.api_token).into();
+
+            let guild = ::gw2api::v2::guild::Guild::get(&client, &link.gw_guild_id).await?;
+
+            if guild.name.starts_with(&argument) {
+                return Ok(Some(link));
+            }
+        }
+
+        Ok(None)
+    }
 }
 
 impl Default for GuildLink {
@@ -207,12 +274,6 @@ impl GuildRank {
         }
     }
 }
-
-crate::task!(
-    tsync,
-    TaskSchedule::Interval(chrono::Duration::hours(1)),
-    task::_sync,
-);
 
 pub fn guildsync() -> Command {
     let mut cmd = Command::new("guildsync");
