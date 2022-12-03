@@ -14,7 +14,9 @@ const DEFAULT_CONFIG: &str = "./config.toml";
 use async_trait::async_trait;
 use clap::Parser;
 use robbot::builder::CreateMessage;
+use robbot::model::channel::GuildMessage;
 use robbot::{arguments::CommandArguments, Command as _, Error};
+use robbot_core::command::MessageExecutor;
 use robbot_core::{router::parse_args, state::State};
 use serenity::{
     client::{bridge::gateway::GatewayIntents, Client, Context, EventHandler},
@@ -207,7 +209,22 @@ impl EventHandler for Handler {
 
         match cmd.executor() {
             Some(executor) => {
-                let res = executor.call(ctx.clone()).await;
+                let res = match executor {
+                    MessageExecutor::Message(executor) => executor.call(ctx.clone()).await,
+                    MessageExecutor::GuildMessage(executor) => {
+                        let ctx = match GuildMessage::try_from(ctx.event.clone()) {
+                            Ok(event) => ctx.clone().swap(event).0,
+                            Err(_) => {
+                                let _ = ctx
+                                    .respond(":x: This command can only be used in guilds.")
+                                    .await;
+                                return;
+                            }
+                        };
+
+                        executor.call(ctx).await
+                    }
+                };
 
                 if let Err(err) = res {
                     match err {

@@ -3,13 +3,15 @@ use robbot::arguments::{CommandArguments, OwnedArguments};
 use serenity::client::Context as RawContext;
 use std::{ops::Deref, sync::Arc};
 
-use robbot::model::channel::Message;
+use robbot::model::channel::{GuildMessage, Message};
 
 use robbot::hook::{HookEvent, HookEventWrapper};
 
 /// An alias for `Context<Message>`. This context is received by
 /// command handlers.
 pub type MessageContext = Context<Message>;
+
+pub type GuildMessageContext = Context<GuildMessage>;
 
 /// An alias for `Context<()>`. This context is received by tasks.
 pub type TaskContext = Context<()>;

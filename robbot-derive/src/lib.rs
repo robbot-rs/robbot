@@ -51,7 +51,7 @@ pub fn command(attr: TokenStream, input: TokenStream) -> TokenStream {
             let exec = robbot_core::executor::Executor::from_fn(#command_ident);
 
             let mut cmd = robbot_core::command::Command::new(#ident_str);
-            cmd.executor = Some(exec);
+            cmd.executor(Some(exec));
 
             #(#recurse)*
 

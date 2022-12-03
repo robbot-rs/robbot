@@ -1,6 +1,6 @@
 #![allow(clippy::mutable_key_type)]
 
-use crate::context::MessageContext;
+use crate::context::{GuildMessageContext, MessageContext};
 use crate::executor::Executor;
 use crate::router::{find_command, parse_args};
 
@@ -23,15 +23,17 @@ pub struct Command {
     pub description: String,
     pub usage: String,
     pub example: String,
+    #[deprecated = "Use `MessageExecutor::GuildMessage` instead"]
     pub guild_only: bool,
     /// A list of permissions required to run the command.
     /// Setting this on a non-guild-only command has no effect.
     pub permissions: Vec<String>,
     pub sub_commands: HashSet<Self>,
-    pub executor: Option<Executor<MessageContext>>,
+    pub executor: Option<MessageExecutor>,
 }
 
 impl Command {
+    #[allow(deprecated)]
     pub fn new(name: impl ToString) -> Self {
         Self {
             name: name.to_string(),
@@ -73,6 +75,8 @@ impl Command {
         self.example = example.to_string();
     }
 
+    #[allow(deprecated)]
+    #[deprecated = "Use `MessageExecutor::GuildMessage` instead"]
     pub fn set_guild_only(&mut self, guild_only: bool) {
         self.guild_only = guild_only;
     }
@@ -85,8 +89,11 @@ impl Command {
         self.permissions = permissions.into_iter().map(|n| n.to_string()).collect();
     }
 
-    pub fn executor(&mut self, executor: Option<Executor<MessageContext>>) {
-        self.executor = executor;
+    pub fn executor<E>(&mut self, executor: Option<E>)
+    where
+        E: Into<MessageExecutor>,
+    {
+        self.executor = executor.map(|e| e.into());
     }
 }
 
@@ -114,7 +121,7 @@ impl Hash for Command {
 }
 
 impl CommandExt for Command {
-    type Executor = Executor<MessageContext>;
+    type Executor = MessageExecutor;
 
     fn name(&self) -> &str {
         &self.name
@@ -132,6 +139,7 @@ impl CommandExt for Command {
         &self.example
     }
 
+    #[allow(deprecated)]
     fn guild_only(&self) -> bool {
         self.guild_only
     }
@@ -157,12 +165,13 @@ pub struct LoadedCommand {
     pub example: String,
     pub guild_only: bool,
     pub sub_commands: HashSet<SubCommand>,
-    pub executor: Option<Executor<MessageContext>>,
+    pub executor: Option<MessageExecutor>,
     pub permissions: Vec<String>,
     pub module_id: ModuleId,
 }
 
 impl LoadedCommand {
+    #[allow(deprecated)]
     fn new(command: Command, module_id: ModuleId) -> Self {
         Self {
             name: command.name,
@@ -286,7 +295,7 @@ impl SubCommand {
 }
 
 impl CommandExt for SubCommand {
-    type Executor = Executor<MessageContext>;
+    type Executor = MessageExecutor;
 
     fn name(&self) -> &str {
         &self.get().name
@@ -580,4 +589,22 @@ pub enum Error {
     DuplicateName,
     #[error("invalid path")]
     InvalidPath,
+}
+
+#[derive(Clone, Debug)]
+pub enum MessageExecutor {
+    Message(Executor<MessageContext>),
+    GuildMessage(Executor<GuildMessageContext>),
+}
+
+impl From<Executor<MessageContext>> for MessageExecutor {
+    fn from(exec: Executor<MessageContext>) -> Self {
+        Self::Message(exec)
+    }
+}
+
+impl From<Executor<GuildMessageContext>> for MessageExecutor {
+    fn from(exec: Executor<GuildMessageContext>) -> Self {
+        Self::GuildMessage(exec)
+    }
 }

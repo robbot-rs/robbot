@@ -19,6 +19,10 @@ pub trait Command: Sized + Hash + Eq + Borrow<str> {
     /// Whether the command should only be usable inside
     /// guilds. Note that if the command is guild-only all
     /// subcommands will infer the guild-only property.
+    ///
+    /// **Note that this flag is now deprecated and should be instead be contained in
+    /// [`Self::Executor`] in some way, e.g. through an `enum`.
+    #[deprecated = "This flag should be included in `Command::Executor`"]
     fn guild_only(&self) -> bool;
     /// Returns a list of all permissions required to run the
     /// command. If a user does not have the required permissions,

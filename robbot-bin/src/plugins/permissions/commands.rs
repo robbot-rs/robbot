@@ -7,7 +7,7 @@ use robbot::arguments::{RoleMention, UserMention};
 use robbot::builder::CreateMessage;
 use robbot::store::{delete, insert};
 use robbot::{command, Error, Result};
-use robbot_core::context::MessageContext;
+use robbot_core::context::GuildMessageContext;
 use robbot_core::permissions::{RolePermission, UserPermission};
 
 use std::fmt::Write;
@@ -16,10 +16,9 @@ use std::fmt::Write;
     description = "Add new permissions to a user or role.",
     usage = "<@User> <Permission...>",
     example = "@Robbbbbbb permissions.manage",
-    guild_only = true,
     permissions = [PERMISSION_MANAGE],
 )]
-async fn add(mut ctx: MessageContext) -> Result {
+async fn add(mut ctx: GuildMessageContext) -> Result {
     let id = ctx.args.pop().ok_or(Error::InvalidCommandUsage)?;
 
     // Expect at least a single permission node.
@@ -27,7 +26,7 @@ async fn add(mut ctx: MessageContext) -> Result {
         return Err(Error::InvalidCommandUsage);
     }
 
-    let guild_id = ctx.event.guild_id.unwrap();
+    let guild_id = ctx.event.guild_id;
 
     if id.contains("@&") {
         // Expect a role.
@@ -83,13 +82,12 @@ async fn add(mut ctx: MessageContext) -> Result {
     description = "List all permissions of a user or role.",
     usage = "<@User>",
     example = "@Robbbbbbb",
-    guild_only = true,
     permissions = [PERMISSION_MANAGE],
 )]
-async fn list(mut ctx: MessageContext) -> Result {
+async fn list(mut ctx: GuildMessageContext) -> Result {
     let id = ctx.args.pop().ok_or(Error::InvalidCommandUsage)?;
 
-    let guild_id = ctx.event.guild_id.unwrap();
+    let guild_id = ctx.event.guild_id;
 
     let mut description = String::new();
 
@@ -136,10 +134,9 @@ async fn list(mut ctx: MessageContext) -> Result {
     description = "Remove permissions from a user.",
     usage = "<@User> <Permission...>",
     example = "@Robbbbbbb",
-    guild_only = true,
     permissions = [PERMISSION_MANAGE],
 )]
-async fn remove(mut ctx: MessageContext) -> Result {
+async fn remove(mut ctx: GuildMessageContext) -> Result {
     let id = ctx.args.pop().ok_or(Error::InvalidCommandUsage)?;
 
     // Expect at least a single permission node.
@@ -147,7 +144,7 @@ async fn remove(mut ctx: MessageContext) -> Result {
         return Err(Error::InvalidCommandUsage);
     }
 
-    let guild_id = ctx.event.guild_id.unwrap();
+    let guild_id = ctx.event.guild_id;
 
     if id.contains("@&") {
         // Expect a role.
